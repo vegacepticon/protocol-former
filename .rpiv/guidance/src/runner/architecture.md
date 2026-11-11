@@ -18,6 +18,8 @@ runner-state.ts                # public state + undo/redo/snapshot contracts
 text-accumulator.ts            # separator-aware text buffer
 runner-output.ts               # retained output, note lock, acknowledgement/retry
 snippet-label.ts               # pure snippet classification/captions
+keymap.ts                      # pure KeyboardEvent -> runner action resolver
+option-target.ts               # one keyboard-selectable rendered option
 render/                         # DOM adapter; see its own guidance
 ```
 
@@ -88,6 +90,11 @@ if (wire !== null) restored.restoreFrom(wire);
 // restoreFrom deep-copies frames/history, clears redo, and resets errors.
 ```
 Serialized undo entries retain `restoreStatus` and `returnToBranchList`; do not rely on stale comments that omit them. `syncManualEdit()` overwrites text without history and must run before the forward action that captures the undo snapshot.
+
+## Keyboard Model
+`keymap.ts` is the single source of truth for runner keys: `resolveRunnerKey(input, context)` maps a DOM-free `RunnerKeyInput` plus a `RunnerKeyContext` availability snapshot to at most one `RunnerKeyAction`, or `null`. It matches letters and digits on `event.code` (layout independent), bails out during IME composition and from text-entry targets, accepts modifiers only for the legacy `Ctrl/Alt/Mod+←/→` aliases, and returns `null` for unavailable actions so callers never `preventDefault()` a no-op. Keep it pure: no DOM, no Obsidian, no renderer imports.
+
+Renderers register each keyboard-selectable option through `host.registerOption({ element, activate, keyboardElement? })` in render order; the host owns numbering (`1`–`9`), `data-rp-key`/`aria-keyshortcuts` decoration, dispatch, the hint row, and focus restoration. A free-text option's `activate` focuses its field instead of submitting. Escape also resolves in the host (`close` → `requestClose()`), so shells only translate `onRequestClose` into presentation policy.
 
 ## Architectural Boundaries
 - No Obsidian, DOM, service, or view imports in the core runner.

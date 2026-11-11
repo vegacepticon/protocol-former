@@ -249,11 +249,13 @@ export class InlineRunnerModal {
   private handleKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
     if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    // The shared host owns the whole keymap, Escape included (its close path
+    // runs the uninserted-draft confirmation). The shell keeps a close fallback
+    // for the window where the host is gone but the container still listens.
+    if (this.sessionHost?.handleKeydown(event) === true) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       this.close();
-      return;
     }
-    this.sessionHost?.handleKeydown(event);
   }
 }

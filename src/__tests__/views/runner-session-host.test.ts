@@ -1331,3 +1331,271 @@ describe('RunnerSessionHost free-text Answer as a direct loop branch target', ()
     expect(h.root.querySelector('.rp-free-text-answer-textarea')?.value).toBe('');
   });
 });
+
+describe('RunnerSessionHost keyboard model', () => {
+  function keyboard(
+    init: { code?: string; key?: string; ctrlKey?: boolean; altKey?: boolean; target?: unknown },
+  ): { event: KeyboardEvent; preventDefault: ReturnType<typeof vi.fn> } {
+    const preventDefault = vi.fn();
+    const event = {
+      code: init.code,
+      key: init.key,
+      ctrlKey: init.ctrlKey ?? false,
+      altKey: init.altKey ?? false,
+      metaKey: false,
+      shiftKey: false,
+      isComposing: false,
+      target: init.target ?? null,
+      preventDefault,
+    } as unknown as KeyboardEvent;
+    return { event, preventDefault };
+  }
+
+  function twoOptionGraph(): ProtocolGraph {
+    return graph([
+      { ...base, id: 'start', kind: 'start' },
+      { ...base, id: 'question', kind: 'question', questionText: 'First?' },
+      { ...base, id: 'a1', kind: 'answer', answerText: 'A1' },
+      { ...base, id: 'a2', kind: 'answer', answerText: 'A2' },
+      { ...base, id: 'next', kind: 'question', questionText: 'Second?' },
+      { ...base, id: 'a3', kind: 'answer', answerText: 'A3' },
+    ], [
+      { id: 'start-question', fromNodeId: 'start', toNodeId: 'question' },
+      { id: 'q-a1', fromNodeId: 'question', toNodeId: 'a1' },
+      { id: 'q-a2', fromNodeId: 'question', toNodeId: 'a2' },
+      { id: 'a1-next', fromNodeId: 'a1', toNodeId: 'next' },
+      { id: 'a2-next', fromNodeId: 'a2', toNodeId: 'next' },
+      { id: 'next-a3', fromNodeId: 'next', toNodeId: 'a3' },
+    ]);
+  }
+
+  function optionKeys(root: MockEl): string[] {
+    return root.querySelectorAll('.rp-answer-btn')
+      .map((el) => el.getAttribute('data-rp-key') ?? '');
+  }
+
+  it('numbers the rendered options and dispatches the Nth digit', async () => {
+    const h = harness(twoOptionGraph());
+    expect(await h.host.mount(h.root as unknown as HTMLElement)).toBe(true);
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('First?');
+    expect(optionKeys(h.root)).toEqual(['1', '2']);
+    expect(h.root.querySelector('.rp-answer-btn')?.getAttribute('aria-keyshortcuts')).toBe('1');
+
+    const { event, preventDefault } = keyboard({ code: 'Digit2', key: '2' });
+    expect(h.host.handleKeydown(event)).toBe(true);
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    await flushMicrotasks();
+
+    expect(h.app.vault.modify).toHaveBeenCalledWith(h.targetNote, 'Seed\nA2');
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('Second?');
+    h.host.dispose();
+  });
+
+  it('ignores digits beyond the option count without preventing default', async () => {
+    const h = harness(twoOptionGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const { event, preventDefault } = keyboard({ code: 'Digit9', key: '9' });
+    expect(h.host.handleKeydown(event)).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(h.app.vault.modify).not.toHaveBeenCalled();
+    h.host.dispose();
+  });
+
+  it('focuses a free-text option instead of submitting it', async () => {
+    const h = harness(freeTextMixedGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const { event } = keyboard({ code: 'Digit1', key: '1' });
+    expect(h.host.handleKeydown(event)).toBe(true);
+
+    expect(h.root.querySelector('.rp-free-text-answer-textarea')?.focusCount).toBe(1);
+    expect(h.app.vault.modify).not.toHaveBeenCalled();
+    h.host.dispose();
+  });
+
+  it('navigates with Z, X, and Backspace, including a Russian-layout event', async () => {
+    const h = harness(twoOptionGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+
+    h.root.querySelector('.rp-answer-btn')!.dispatchEvent({ type: 'click' });
+    await flushMicrotasks();
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('Second?');
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyZ', key: 'я' }).event)).toBe(true);
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('First?');
+    await flushMicrotasks(1);
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyX', key: 'ч' }).event)).toBe(true);
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('Second?');
+    await flushMicrotasks(1);
+
+    expect(h.host.handleKeydown(keyboard({ code: 'Backspace', key: 'Backspace' }).event)).toBe(true);
+    expect(h.root.querySelector('.rp-question-text')?._text).toBe('First?');
+    h.host.dispose();
+  });
+
+  it('keeps every key inert after disposal', async () => {
+    const h = harness(twoOptionGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    h.host.dispose();
+    const { event, preventDefault } = keyboard({ code: 'KeyZ', key: 'z' });
+    expect(h.host.handleKeydown(event)).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('never intercepts keys typed inside a field', async () => {
+    const h = harness(freeTextMixedGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const { event, preventDefault } = keyboard({
+      code: 'KeyZ',
+      key: 'z',
+      target: { tagName: 'TEXTAREA' },
+    });
+    expect(h.host.handleKeydown(event)).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
+    h.host.dispose();
+  });
+
+  it('toggles the hint row with H and lists only available actions', async () => {
+    const h = harness(twoOptionGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const hints = h.root.querySelector('.rp-runner-key-hints')!;
+    const hintLabels = (): string[] =>
+      hints.querySelectorAll('.rp-runner-key-hint-label').map((el) => el._text);
+    expect(hints.hasClass('is-hidden')).toBe(false);
+    // A fresh session has nothing to undo, so Back/Redo are absent.
+    expect(hintLabels()).toContain('Выбор');
+    expect(hintLabels()).toContain('Пропуск');
+    expect(hintLabels()).toContain('Закрыть');
+    expect(hintLabels()).not.toContain('Назад');
+
+    h.root.querySelector('.rp-answer-btn')!.dispatchEvent({ type: 'click' });
+    await flushMicrotasks();
+    expect(hintLabels()).toContain('Назад');
+    expect(hintLabels()).not.toContain('Вперёд');
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyH', key: 'h' }).event)).toBe(true);
+    expect(hints.hasClass('is-hidden')).toBe(true);
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyH', key: 'h' }).event)).toBe(true);
+    expect(hints.hasClass('is-hidden')).toBe(false);
+    h.host.dispose();
+  });
+
+  it('focuses the runner root on mount unless the shell opts out', async () => {
+    vi.useFakeTimers();
+    try {
+      const focused = harness(twoOptionGraph());
+      await focused.host.mount(focused.root as unknown as HTMLElement);
+      vi.runAllTimers();
+      expect(focused.root.focusCount).toBe(1);
+      focused.host.dispose();
+
+      const sidebar = harness(twoOptionGraph());
+      (sidebar.host as unknown as { options: { autoFocusOnMount?: boolean } }).options.autoFocusOnMount = false;
+      await sidebar.host.mount(sidebar.root as unknown as HTMLElement);
+      vi.runAllTimers();
+      expect(sidebar.root.focusCount).toBe(0);
+      sidebar.host.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('restores root focus after a digit action removes the clicked control', async () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness(twoOptionGraph());
+      await h.host.mount(h.root as unknown as HTMLElement);
+      const before = h.root.focusCount;
+      h.host.handleKeydown(keyboard({ code: 'Digit2', key: '2' }).event);
+      await flushMicrotasks();
+      vi.runAllTimers();
+      expect(h.root.focusCount).toBeGreaterThan(before);
+      h.host.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('closes through the host on Escape, including the draft confirmation path', async () => {
+    const clean = harness(twoOptionGraph());
+    await clean.host.mount(clean.root as unknown as HTMLElement);
+    expect(clean.host.handleKeydown(keyboard({ code: 'Escape', key: 'Escape' }).event)).toBe(true);
+    expect(clean.onRequestClose).toHaveBeenCalledTimes(1);
+    clean.host.dispose();
+
+    const dirty = harness(twoOptionGraph(), '{}', true);
+    await dirty.host.mount(dirty.root as unknown as HTMLElement);
+    const draft = dirty.root.querySelector('.rp-runner-draft')!.querySelector('textarea')!;
+    draft.value = 'Keep me';
+    draft.dispatchEvent({ type: 'input' });
+    expect(dirty.host.handleKeydown(keyboard({ code: 'Escape', key: 'Escape' }).event)).toBe(true);
+    expect(confirmations).toHaveLength(1);
+    expect(dirty.onRequestClose).not.toHaveBeenCalled();
+    dirty.host.dispose();
+  });
+
+  it('inserts the conclusion draft with V and reports it in the hint row', async () => {
+    const h = harness(twoOptionGraph(), '{}', true);
+    let text = 'Seed';
+    const editor = {
+      getValue: () => text,
+      getCursor: () => ({ line: 0, ch: 4 }),
+      posToOffset: () => 4,
+      offsetToPos: () => ({ line: 0, ch: 4 }),
+      replaceRange: (inserted: string) => { text += inserted; },
+      setCursor: () => {},
+    };
+    h.app.workspace.iterateAllLeaves.mockImplementation((callback: any) => callback({
+      view: { file: h.targetNote, editor, getMode: () => 'source', save: async () => {} },
+    }));
+    await h.host.mount(h.root as unknown as HTMLElement);
+
+    const draft = h.root.querySelector('.rp-runner-draft')!.querySelector('textarea')!;
+    draft.value = 'Drafted conclusion';
+    draft.dispatchEvent({ type: 'input' });
+    // The hint row refreshes on the next render (V availability is per-render).
+    (h.host as any).render();
+    const labels = h.root.querySelector('.rp-runner-key-hints')!
+      .querySelectorAll('.rp-runner-key-hint-label').map((el) => el._text);
+    expect(labels).toContain('Вставить');
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyV', key: 'v' }).event)).toBe(true);
+    await flushMicrotasks();
+    expect(text).toBe('SeedDrafted conclusion');
+    h.host.dispose();
+  });
+
+  it('focuses the first blank free-text field with F', async () => {
+    const h = harness(freeTextDraftGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const [first, second] = h.root.querySelectorAll('.rp-free-text-answer-textarea');
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+
+    first!.value = 'already typed';
+    first!.dispatchEvent({ type: 'input' });
+
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyF', key: 'f' }).event)).toBe(true);
+    expect(second!.focusCount).toBe(1);
+    expect(first!.focusCount).toBe(0);
+    h.host.dispose();
+  });
+
+  it('keeps the whole keymap inert while a note write is blocked', async () => {
+    const h = harness(twoOptionGraph());
+    const pendingRead = deferred<string>();
+    h.app.vault.read.mockImplementation((file: { path: string }) =>
+      file.path === h.protocolFile.path ? Promise.resolve('{}') : pendingRead.promise);
+    await h.host.mount(h.root as unknown as HTMLElement);
+    h.root.querySelector('.rp-answer-btn')!.dispatchEvent({ type: 'click' });
+    await flushMicrotasks(2);
+
+    const { event, preventDefault } = keyboard({ code: 'Digit1', key: '1' });
+    expect(h.host.handleKeydown(event)).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
+    pendingRead.resolve('Seed\n');
+    await flushMicrotasks();
+    h.host.dispose();
+  });
+});

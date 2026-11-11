@@ -130,5 +130,8 @@ The runner host intentionally owns protocol migration/read/validation, accumulat
 3. Preserve read-only library guards and route persistence through the document store.
 </important>
 
+## Runner Keyboard and Focus
+`RunnerSessionHost` owns the whole runner keymap through `runner/keymap.ts`; both shells only forward `keydown` and translate `onRequestClose`. The host keeps `renderedOptions` (registration order from the renderers), decorates the first nine with `data-rp-key`/`aria-keyshortcuts`, rebuilds the hint row per render from the same availability snapshot, and restores root focus after a render that started with focus inside the runner. `autoFocusOnMount` defaults to true for the floating panel and is set to false by the sidebar, whose leaf already owns focus. Never move focus when it currently lives outside the runner.
+
 ## Runner Output Recovery
 Both runner presentations use `RunnerSessionHost` and `runner/runner-output.ts` for accepted note deltas. Pending writes block navigation and stale controls; rejected writes show retained output and a retry action. Completion and self-check are rendered only after acknowledgement. Dispose guards still cancel unstarted writes and suppress late renders.

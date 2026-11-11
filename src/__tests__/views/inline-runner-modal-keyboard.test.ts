@@ -53,13 +53,24 @@ describe('InlineRunnerModal keyboard policy', () => {
     expect(h.close).not.toHaveBeenCalled();
   });
 
-  it('keeps Escape as floating-shell close policy', () => {
+  it('delegates Escape to the shared host first', () => {
     const h = setup();
     const keyboardEvent = event({ key: 'Escape' });
     (h.modal as any).handleKeydown(keyboardEvent);
+    expect(h.handleKeydown).toHaveBeenCalledWith(keyboardEvent);
+    // The stub host declines (returns undefined), so the shell fallback closes.
     expect(keyboardEvent.preventDefault).toHaveBeenCalled();
     expect(h.close).toHaveBeenCalledTimes(1);
-    expect(h.handleKeydown).not.toHaveBeenCalled();
+  });
+
+  it('leaves close and preventDefault to the host when it consumes Escape', () => {
+    const h = setup();
+    h.handleKeydown.mockReturnValue(true);
+    const keyboardEvent = event({ key: 'Escape' });
+    (h.modal as any).handleKeydown(keyboardEvent);
+    expect(h.handleKeydown).toHaveBeenCalledWith(keyboardEvent);
+    expect(keyboardEvent.preventDefault).not.toHaveBeenCalled();
+    expect(h.close).not.toHaveBeenCalled();
   });
 
   it.each(['INPUT', 'TEXTAREA'])('ignores every shell shortcut from %s', (tagName) => {

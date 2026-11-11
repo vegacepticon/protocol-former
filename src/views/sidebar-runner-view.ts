@@ -169,6 +169,7 @@ export class SidebarRunnerView extends ItemView {
       getTextSeparator: () => this.plugin.settings.textSeparator,
       getSnippetFolderPath: () => this.plugin.settings.snippetFolderPath,
       isRunnerDraftEnabled: () => this.plugin.settings.enableRunnerDraft !== false,
+      autoFocusOnMount: false,
       withTargetNoteLock: (path, operation) =>
         this.plugin['insertMutex'].runExclusive(path, operation),
       t,
@@ -343,12 +344,13 @@ export class SidebarRunnerView extends ItemView {
     if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
       return;
     }
+    // Escape and every runner shortcut resolve in the shared host; the shell
+    // closes the leaf itself only when the host is missing or not mounted yet.
+    if (this.sessionHost?.handleKeydown(event) === true) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       this.requestClose();
-      return;
     }
-    this.sessionHost?.handleKeydown(event);
   }
 
   private requestClose(force = false): void {

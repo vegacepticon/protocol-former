@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const hostState = vi.hoisted(() => ({
   mountResult: true,
   requestCloseDuringMount: false,
+  /** Mirrors the real host: true = keymap consumed, false = host declined. */
+  handleKeydownResult: true,
   instances: [] as Array<{
     options: Record<string, any>;
     root: unknown;
@@ -52,7 +54,7 @@ vi.mock('../../views/runner-session-host', () => ({
         undefined,
         [event],
       );
-      return true;
+      return hostState.handleKeydownResult;
     }
   },
 }));
@@ -241,6 +243,7 @@ function keyboardEvent(
 beforeEach(() => {
   hostState.mountResult = true;
   hostState.requestCloseDuringMount = false;
+  hostState.handleKeydownResult = true;
   hostState.instances.length = 0;
 });
 
@@ -408,6 +411,10 @@ describe('SidebarRunnerView close and keyboard policy', () => {
     const harness = await openMarkedView();
     const host = hostState.instances[0]!;
     host.dirty = true;
+    // The shell fallback runs when the shared host declines the key (for
+    // example before its first render); the closed-loop path is covered by the
+    // "host handles Escape" case below.
+    hostState.handleKeydownResult = false;
     harness.view.contentEl.dispatchEvent(keyboardEvent('Escape') as any);
     expect(host.requestClose).toHaveBeenCalledOnce();
     expect(harness.leaf.detachCalls).toBe(0);
@@ -443,6 +450,7 @@ describe('SidebarRunnerView close and keyboard policy', () => {
 
   it('delegates Back/Redo keys, detaches on non-input Escape, and ignores input Escape', async () => {
     const harness = await openMarkedView();
+    hostState.handleKeydownResult = false;
     const back = keyboardEvent('ArrowLeft');
     const redo = keyboardEvent('ArrowRight');
     harness.view.contentEl.dispatchEvent(back as any);
@@ -458,6 +466,18 @@ describe('SidebarRunnerView close and keyboard policy', () => {
     harness.view.contentEl.dispatchEvent(escape as any);
     expect(escape.preventDefault).toHaveBeenCalledTimes(1);
     expect(harness.leaf.detachCalls).toBe(1);
+  });
+
+  it('leaves Escape entirely to the host when the shared keymap consumes it', async () => {
+    const harness = await openMarkedView();
+    const escape = keyboardEvent('Escape');
+    harness.view.contentEl.dispatchEvent(escape as any);
+
+    expect(hostState.instances[0]!.handleKeydown).toHaveBeenCalledWith(escape);
+    // The host owns requestClose() -> onRequestClose() -> leaf detach, so the
+    // shell must neither preventDefault nor detach on its own.
+    expect(escape.preventDefault).not.toHaveBeenCalled();
+    expect(harness.leaf.detachCalls).toBe(0);
   });
 
   it('cleans host, timer, event, keyboard, marker, DOM, and context idempotently', async () => {

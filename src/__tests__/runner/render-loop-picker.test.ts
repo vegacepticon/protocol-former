@@ -148,6 +148,7 @@ function makeHost(overrides: Partial<LoopPickerHost> = {}): LoopPickerHost {
     onChooseLoopBranch: vi.fn(),
     getAnswerFocusRequest: () => null,
     requestAnswerFocus: vi.fn(),
+    registerOption: vi.fn(),
     t: (key: string) => (key === 'protocolRunner.freeTextSubmit' ? 'Submit' : key),
     ...overrides,
   };
@@ -497,5 +498,61 @@ describe('shared loop picker renderer', () => {
     expect(requestAnswerFocus).toHaveBeenCalledTimes(2);
     expect(requestAnswerFocus.mock.calls[1]?.[0]).toBe('free');
     expect(requestAnswerFocus.mock.calls[1]?.[2]).toBe(true);
+  });
+});
+
+describe('shared loop picker — numbered option registration', () => {
+  const state = {
+    status: 'awaiting-loop-pick' as const,
+    nodeId: 'loop',
+    accumulatedText: '',
+    canStepBack: true,
+    canRedo: false,
+    undoStackSize: 0,
+  };
+
+  it('registers body and exit branches in rendered order', () => {
+    const registered: Array<{ element: MockEl; activate: () => void }> = [];
+    const onChooseLoopBranch = vi.fn();
+    const host = makeHost({
+      registerOption: (option) => registered.push(option as unknown as { element: MockEl; activate: () => void }),
+      onChooseLoopBranch,
+    });
+    const textZone = new MockEl('div');
+    const actionZone = new MockEl('div');
+    renderLoopPicker(asHtml(textZone), asHtml(actionZone), graph([
+      { id: 'e-body', fromNodeId: 'loop', toNodeId: 'body' },
+      { id: 'e-exit', fromNodeId: 'loop', toNodeId: 'exit', isLoopExit: true, label: 'Stop' },
+    ]), state, host);
+
+    expect(registered).toHaveLength(2);
+    expect(registered[0]?.element).toBe(findByClass(actionZone, 'rp-loop-body-btn')[0]);
+    expect(registered[1]?.element).toBe(findByClass(actionZone, 'rp-loop-exit-btn')[0]);
+    registered[1]?.activate();
+    expect(onChooseLoopBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'e-exit' }),
+      true,
+    );
+  });
+
+  it('focuses a free-text loop target instead of choosing it', () => {
+    const registered: Array<{ element: MockEl; activate: () => void; keyboardElement?: MockEl }> = [];
+    const onSubmitFreeText = vi.fn();
+    const host = makeHost({
+      registerOption: (option) => registered.push(option as unknown as typeof registered[number]),
+      onSubmitFreeText,
+    });
+    const actionZone = new MockEl('div');
+    const freeTextGraph = graph([
+      { id: 'e-text', fromNodeId: 'loop', toNodeId: 'text' },
+    ]);
+    freeTextGraph.nodes.set('text', node('text', 'answer', { answerText: 'Typed', freeText: true }));
+    renderLoopPicker(asHtml(new MockEl('div')), asHtml(actionZone), freeTextGraph, state, host);
+
+    expect(registered).toHaveLength(1);
+    expect(registered[0]?.keyboardElement?.tag).toBe('textarea');
+    registered[0]?.activate();
+    expect(registered[0]?.keyboardElement?.focusCount).toBe(1);
+    expect(onSubmitFreeText).not.toHaveBeenCalled();
   });
 });

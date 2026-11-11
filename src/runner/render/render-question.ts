@@ -6,6 +6,7 @@ import type { AnswerNode, ProtocolGraph, RPEdge, SnippetNode } from '../../graph
 import type { Translator } from '../../i18n';
 import { createButton, createTextarea, growAutoTextarea } from '../../utils/dom-helpers';
 import type { RunnerState } from '../runner-state';
+import type { RunnerOptionTarget } from '../option-target';
 import { isFileBoundSnippetNode, snippetBranchLabel } from '../snippet-label';
 
 type AtNodeState = Extract<RunnerState, { status: 'at-node' }>;
@@ -21,6 +22,8 @@ export interface QuestionBranchHost {
   bindClick(el: HTMLElement, handler: (ev: MouseEvent) => void): void;
   bindInput(el: HTMLTextAreaElement, handler: (ev: Event) => void): void;
   bindKeydown(el: HTMLTextAreaElement, handler: (ev: KeyboardEvent) => void): void;
+  /** Registers the option for numbered keyboard selection, in render order. */
+  registerOption(option: RunnerOptionTarget): void;
   scheduleTextareaResize(textarea: HTMLTextAreaElement, resize: () => void): void;
   renderError(messages: string[]): void;
   getAnswerDraft(answerId: string): string;
@@ -48,9 +51,11 @@ function appendAnswerButton(parent: HTMLElement, answerNode: AnswerNode, host: Q
     cls: 'rp-answer-btn',
     text: answerNode.displayLabel ?? answerNode.answerText,
   });
-  host.bindClick(btn, () => {
+  const activate = (): void => {
     void host.onChooseAnswer(answerNode);
-  });
+  };
+  host.bindClick(btn, activate);
+  host.registerOption({ element: btn, activate });
 }
 
 function growTextarea(textarea: HTMLTextAreaElement): void {
@@ -112,6 +117,14 @@ function appendFreeTextAnswer(
   host.bindClick(submitButton, () => {
     void host.onSubmitFreeText(answerNode, textarea.value);
   });
+  // A digit aimed at a free-text option moves the caret into the field: the
+  // option cannot be "chosen" until text exists, and submitting an empty draft
+  // on a number press would surface a spurious validation error.
+  host.registerOption({
+    element: row,
+    keyboardElement: textarea,
+    activate: () => textarea.focus(),
+  });
 
   host.scheduleTextareaResize(textarea, () => growTextarea(textarea));
   return { answerId: answerNode.id, textarea };
@@ -141,9 +154,11 @@ function appendQuestionTransitionButton(parent: HTMLElement, edge: RPEdge, graph
     cls: 'rp-question-transition-btn',
     text: caption,
   });
-  host.bindClick(btn, () => {
+  const activate = (): void => {
     void host.onChooseQuestionBranch(edge);
-  });
+  };
+  host.bindClick(btn, activate);
+  host.registerOption({ element: btn, activate });
 }
 
 function appendSnippetBranchButton(parent: HTMLElement, snippetNode: SnippetNode, host: QuestionBranchHost): void {
@@ -152,9 +167,11 @@ function appendSnippetBranchButton(parent: HTMLElement, snippetNode: SnippetNode
     cls: 'rp-snippet-branch-btn',
     text: snippetBranchLabel(snippetNode),
   });
-  host.bindClick(btn, () => {
+  const activate = (): void => {
     void host.onChooseSnippetBranch(snippetNode, isFileBound);
-  });
+  };
+  host.bindClick(btn, activate);
+  host.registerOption({ element: btn, activate });
 }
 
 function requestProjectedAnswerFocus(

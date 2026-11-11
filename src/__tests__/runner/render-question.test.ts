@@ -4,6 +4,7 @@ import {
   renderQuestionAtNode,
   type QuestionBranchHost,
 } from '../../runner/render/render-question';
+import type { RunnerOptionTarget } from '../../runner/option-target';
 import {
   findByClass,
   makeEl,
@@ -104,6 +105,7 @@ function groupedGraph(current: RPNode = baseNode('q', 'question')): ProtocolGrap
 
 interface HostHarness {
   host: QuestionBranchHost;
+  registeredOptions: RunnerOptionTarget[];
   onChooseAnswer: ReturnType<typeof vi.fn>;
   onChooseSnippetBranch: ReturnType<typeof vi.fn>;
   onChooseQuestionBranch: ReturnType<typeof vi.fn>;
@@ -125,8 +127,11 @@ function hostHarness(options: {
   const onSubmitFreeText = vi.fn();
   const requestAnswerFocus = vi.fn();
   const renderError = vi.fn();
+  const registeredOptions: RunnerOptionTarget[] = [];
   return {
+    registeredOptions,
     host: {
+      registerOption: (option) => registeredOptions.push(option),
       bindClick: (element, handler) => element.addEventListener('click', handler),
       bindInput: (element, handler) => element.addEventListener('input', handler),
       bindKeydown: (element, handler) => element.addEventListener('keydown', handler),
@@ -493,5 +498,69 @@ describe('start-from-node answer halt renderer', () => {
     const { result } = renderAnswer(harness);
     expect(result).toBe('not-question');
     expect(findByClass(makeEl('div'), 'rp-free-text-answer')).toHaveLength(0);
+  });
+});
+
+describe('shared question renderer — numbered option registration', () => {
+  it('registers every grouped option once, in render order', () => {
+    const harness = hostHarness();
+    const { actionZone } = render(groupedGraph(), harness);
+
+    expect(harness.registeredOptions).toHaveLength(6);
+    const registeredElements = harness.registeredOptions.map((option) => option.element);
+    // Answers render first, then question transitions, then snippet branches.
+    expect(className(registeredElements[0] as unknown as MockEl)).toContain('rp-answer-btn');
+    expect(className(registeredElements[1] as unknown as MockEl)).toContain('rp-question-transition-btn');
+    expect(className(registeredElements[4] as unknown as MockEl)).toContain('rp-snippet-branch-btn');
+    const renderedButtons = findByClass(actionZone, 'rp-answer-btn')
+      .concat(findByClass(actionZone, 'rp-question-transition-btn'))
+      .concat(findByClass(actionZone, 'rp-snippet-branch-btn'));
+    expect(registeredElements).toEqual(renderedButtons);
+  });
+
+  it('registers authored-order options in the authored sequence', () => {
+    const harness = hostHarness();
+    const options = [
+      baseNode('q', 'question', {
+        questionText: 'Pick one',
+        optionOrder: ['e-snippet', 'e-answer', 'e-next'],
+      }),
+      baseNode('a1', 'answer', { answerText: 'Answer' }),
+      baseNode('s-dir', 'snippet', { snippetLabel: 'Snippet' }),
+      baseNode('q-fallback', 'question', { questionText: 'Next' }),
+    ];
+    const graph = graphFrom(options, [
+      { id: 'e-answer', fromNodeId: 'q', toNodeId: 'a1' },
+      { id: 'e-snippet', fromNodeId: 'q', toNodeId: 's-dir' },
+      { id: 'e-next', fromNodeId: 'q', toNodeId: 'q-fallback' },
+    ]);
+    render(graph, harness);
+
+    expect(harness.registeredOptions).toHaveLength(3);
+    const classes = harness.registeredOptions.map((option) =>
+      className(option.element as unknown as MockEl));
+    expect(classes[0]).toContain('rp-snippet-branch-btn');
+    expect(classes[1]).toContain('rp-answer-btn');
+    expect(classes[2]).toContain('rp-question-transition-btn');
+  });
+
+  it('activates the same callback as the click and focuses free-text fields', () => {
+    const harness = hostHarness();
+    render(groupedGraph(), harness);
+    harness.registeredOptions[0]?.activate();
+    expect(harness.onChooseAnswer).toHaveBeenCalledTimes(1);
+
+    const freeTextHarness = hostHarness();
+    const graph = graphFrom(
+      [baseNode('q', 'question'), baseNode('a1', 'answer', { freeText: true, answerText: 'Type' })],
+      [{ id: 'e-answer', fromNodeId: 'q', toNodeId: 'a1' }],
+    );
+    render(graph, freeTextHarness);
+    const freeTextOption = freeTextHarness.registeredOptions[0];
+    expect(freeTextOption?.element).toBeDefined();
+    expect(freeTextOption?.keyboardElement?.tagName).toBe('TEXTAREA');
+    freeTextOption?.activate();
+    expect((freeTextOption?.keyboardElement as unknown as MockEl).focusCount).toBe(1);
+    expect(freeTextHarness.onSubmitFreeText).not.toHaveBeenCalled();
   });
 });

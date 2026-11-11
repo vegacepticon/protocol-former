@@ -324,8 +324,8 @@
   },
   "protocolRunner": {
     "legacyLoopRuntime": "Encountered a deprecated loop-start/loop-end node. The canvas should have been rejected by the validator; if you see this message, this is a bug — please contact the plugin author.",
-    "stepBack": "Go back one step (Ctrl+←)",
-    "stepRedo": "Redo (Ctrl+→)",
+    "stepBack": "Go back one step (Z / Ctrl+←)",
+    "stepRedo": "Redo (X / Ctrl+→)",
     "stepSkip": "Skip this question",
     "closeProtocol": "Close protocol (Esc)",
     "progressLabel": "Protocol progress {percent}%",
@@ -334,9 +334,16 @@
     "loadingSnippets": "Loading snippets…",
     "freeTextSubmit": "Submit",
     "freeTextBlankError": "Enter a value before submitting.",
-    "keyStepBack": "Ctrl+← Back",
-    "keyStepRedo": "Ctrl+→ Redo",
-    "keyClose": "Esc Close"
+    "hintsLabel": "Keyboard shortcuts",
+    "hintChoose": "Choose",
+    "hintBack": "Back",
+    "hintRedo": "Redo",
+    "hintSkip": "Skip",
+    "hintFreeText": "Answer",
+    "hintConclusion": "Draft",
+    "hintInsert": "Insert",
+    "hintHints": "Keys",
+    "hintClose": "Close"
   },
   "inlineRunner": {
     "protocolFileNotFound": "Protocol file not found: \"{path}\".",

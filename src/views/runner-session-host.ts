@@ -4,6 +4,8 @@ import type { AnswerNode, ProtocolGraph, RPEdge } from '../graph/graph-model';
 import type { Translator } from '../i18n';
 import type { ProtocolDocumentParser } from '../protocol/protocol-document-parser';
 import type { ProtocolDocumentStore } from '../protocol/protocol-document-store';
+import { resolveRunnerKey, type RunnerKeyAction, type RunnerKeyContext } from '../runner/keymap';
+import type { RunnerOptionTarget } from '../runner/option-target';
 import { ProtocolRunner } from '../runner/protocol-runner';
 import { RunnerOutput, type AccumulatorDelta } from '../runner/runner-output';
 import { renderCompleteHeading } from '../runner/render/render-complete';
@@ -27,6 +29,22 @@ import { ConfirmModal } from './confirm-modal';
 import { RunnerConclusionDraft } from './runner-conclusion-draft';
 import { RunnerDraftTarget } from './runner-draft-target';
 
+/** Numbered selection covers the first nine rendered options only. */
+const MAX_NUMBERED_OPTIONS = 9;
+
+/** `document` is absent in the node test environment; the host must not assume it. */
+function currentActiveElement(): Element | null {
+  return typeof document === 'undefined' ? null : document.activeElement;
+}
+
+function protocolDisplayName(path: string): string {
+  const base = path.split('/').pop() ?? path;
+  return base
+    .replace(/\.rp\.json$/i, '')
+    .replace(/\.json$/i, '')
+    .replace(/\.canvas$/i, '');
+}
+
 export interface RunnerSessionHostOptions {
   app: App;
   protocolPath: string;
@@ -38,6 +56,8 @@ export interface RunnerSessionHostOptions {
   getTextSeparator(): 'newline' | 'space';
   getSnippetFolderPath(): string;
   isRunnerDraftEnabled?(): boolean;
+  /** Floating shells take focus on open; the sidebar leaf already owns it. */
+  autoFocusOnMount?: boolean;
   withTargetNoteLock(path: string, operation: () => Promise<void>): Promise<void>;
   t: Translator;
   notify(message: string): void;
@@ -73,6 +93,15 @@ export class RunnerSessionHost {
   private contentEl: HTMLElement | null = null;
   private actionsEl: HTMLElement | null = null;
   private footerBtnRowEl: HTMLElement | null = null;
+  /** Options rendered by the current state, in numeric-dispatch order. */
+  private renderedOptions: RunnerOptionTarget[] = [];
+  /** Session-scoped hint-row visibility (H). Presentation state, not a setting. */
+  private hintsVisible = true;
+  private hintsEl: HTMLElement | null = null;
+  /** Requests root focus after the next render (open, keyboard action, click). */
+  private focusAfterRender = false;
+  /** Focus was inside the runner when the render started (click path restore). */
+  private focusWasInsideBeforeRender = false;
 
   private targetDeleteEventRef: EventRef | null = null;
   private snippetTreePicker: SnippetTreePicker | null = null;
@@ -155,6 +184,9 @@ export class RunnerSessionHost {
     });
     this.rootEl = rootEl;
     this.buildDom(rootEl);
+    // The floating shell is opened by an explicit command, so taking focus is
+    // expected; the sidebar leaf already owns focus and opts out.
+    this.focusAfterRender = this.options.autoFocusOnMount !== false;
     this.targetDeleteEventRef = this.options.app.vault.on('delete', (deletedFile) => {
       if (
         !this.mounted
@@ -275,6 +307,8 @@ export class RunnerSessionHost {
     this.contentEl = null;
     this.actionsEl = null;
     this.footerBtnRowEl = null;
+    this.hintsEl = null;
+    this.renderedOptions = [];
     this.graph = null;
     this.selfCheckItems = [];
     this.selfCheckEnabled = false;
@@ -286,25 +320,110 @@ export class RunnerSessionHost {
 
   handleKeydown(event: KeyboardEvent): boolean {
     if (!this.mounted || this.output?.isBlocked() || this.draftWriting || this.draftInsertionAttempt !== null) return false;
-    const target = event.target as HTMLElement | null;
-    if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-      return false;
+    const action = resolveRunnerKey({
+      code: event.code,
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      isComposing: event.isComposing,
+      keyCode: event.keyCode,
+      target: event.target as HTMLElement | null,
+    }, this.buildKeyContext(this.runner.getState()));
+    if (action === null) return false;
+    const handled = this.handleKeyAction(action);
+    if (handled) event.preventDefault();
+    return handled;
+  }
+
+  /** Availability snapshot for the keymap and the hint row. */
+  private buildKeyContext(state: RunnerState): RunnerKeyContext {
+    const draft = this.conclusionDraft;
+    return {
+      optionCount: this.renderedOptions.length,
+      canStepBack: 'canStepBack' in state ? state.canStepBack : false,
+      canRedo: 'canRedo' in state ? state.canRedo : false,
+      canSkip: this.canSkipCurrentQuestion(state),
+      hasFreeTextOption: this.renderedOptions.some((option) => option.keyboardElement !== undefined),
+      hasConclusionDraft: draft !== null && this.options.isRunnerDraftEnabled?.() !== false,
+      canInsertConclusion: draft !== null
+        && draft.hasUninsertedText()
+        && !this.draftWriting
+        && this.output?.isBlocked() !== true,
+    };
+  }
+
+  private canSkipCurrentQuestion(state: RunnerState): boolean {
+    if (state.status !== 'at-node' || this.graph === null) return false;
+    if (this.graph.nodes.get(state.currentNodeId)?.kind !== 'question') return false;
+    const hasAnswers = (this.graph.adjacency.get(state.currentNodeId) ?? [])
+      .some((nodeId) => this.graph?.nodes.get(nodeId)?.kind === 'answer');
+    return hasAnswers && typeof this.runner.skip === 'function';
+  }
+
+  private handleKeyAction(action: RunnerKeyAction): boolean {
+    switch (action.kind) {
+      case 'choose-option': {
+        const option = this.renderedOptions[action.index - 1];
+        if (option === undefined) return false;
+        this.focusAfterRender = true;
+        option.activate();
+        return true;
+      }
+      case 'back':
+        this.focusAfterRender = true;
+        this.runner.stepBack();
+        this.progressPercent = 0;
+        this.render();
+        return true;
+      case 'redo':
+        this.focusAfterRender = true;
+        this.runner.redo();
+        this.progressPercent = 0;
+        this.render();
+        return true;
+      case 'skip':
+        this.focusAfterRender = true;
+        void this.handleSkipClick();
+        return true;
+      case 'focus-free-text':
+        return this.focusFreeTextOption();
+      case 'focus-conclusion': {
+        if (this.conclusionDraft === null) return false;
+        this.conclusionDraft.focusInput();
+        return true;
+      }
+      case 'insert-conclusion':
+        if (this.conclusionDraft === null) return false;
+        void this.insertConclusionDraft();
+        return true;
+      case 'toggle-hints':
+        this.hintsVisible = !this.hintsVisible;
+        this.renderKeyHints();
+        return true;
+      case 'close':
+        this.requestClose();
+        return true;
+      default: {
+        const exhaustive: never = action;
+        return exhaustive;
+      }
     }
-    if ((event.ctrlKey || event.altKey) && event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.runner.stepBack();
-      this.progressPercent = 0;
-      this.render();
-      return true;
-    }
-    if ((event.ctrlKey || event.altKey) && event.key === 'ArrowRight') {
-      event.preventDefault();
-      this.runner.redo();
-      this.progressPercent = 0;
-      this.render();
-      return true;
-    }
-    return false;
+  }
+
+  private focusFreeTextOption(): boolean {
+    const freeTextOptions = this.renderedOptions.filter(
+      (option): option is RunnerOptionTarget & { keyboardElement: HTMLElement } =>
+        option.keyboardElement !== undefined,
+    );
+    if (freeTextOptions.length === 0) return false;
+    const blank = freeTextOptions.find((option) =>
+      (option.keyboardElement as HTMLTextAreaElement).value.trim() === '');
+    const target = blank ?? freeTextOptions[0];
+    if (target === undefined) return false;
+    target.keyboardElement.focus();
+    return true;
   }
 
   private isLifecycleCurrent(generation: number): boolean {
@@ -339,9 +458,18 @@ export class RunnerSessionHost {
   private buildDom(rootEl: HTMLElement): void {
     rootEl.empty();
     rootEl.addClass('rp-runner-session-root');
+    // Programmatic focus target for the runner keymap; keeps the root out of the
+    // Tab order while still letting the host return focus after a rerender.
+    rootEl.setAttribute('tabindex', '-1');
 
     const header = rootEl.createDiv({ cls: 'rp-runner-session-header' });
     this.headerEl = header;
+    const title = header.createDiv({ cls: 'rp-runner-session-title' });
+    title.createSpan({
+      cls: 'rp-runner-session-title-text',
+      text: protocolDisplayName(this.options.protocolPath),
+      attr: { title: this.options.protocolPath },
+    });
     const progress = header.createDiv({
       cls: 'rp-runner-session-progress',
       attr: {
@@ -374,12 +502,32 @@ export class RunnerSessionHost {
       });
     }
     const footer = rootEl.createDiv({ cls: 'rp-runner-session-footer' });
+    this.hintsEl = footer.createDiv({
+      cls: 'rp-runner-key-hints',
+      attr: {
+        role: 'group',
+        'aria-label': this.options.t('protocolRunner.hintsLabel'),
+      },
+    });
     this.footerBtnRowEl = footer.createDiv({ cls: 'rp-runner-session-footer-btn-row' });
     this.renderFooterCloseButton();
   }
 
   private render(): void {
+    try {
+      this.renderState();
+    } finally {
+      this.finalizeRender();
+    }
+  }
+
+  private renderState(): void {
     if (!this.mounted || this.contentEl === null || this.actionsEl === null) return;
+    const active = currentActiveElement();
+    this.focusWasInsideBeforeRender = active !== null
+      && this.rootEl !== null
+      && active !== (typeof document === 'undefined' ? null : document.body)
+      && this.rootEl.contains(active as Node);
 
     const lifecycleGeneration = this.lifecycleGeneration;
     const operationGeneration = ++this.operationGeneration;
@@ -396,6 +544,7 @@ export class RunnerSessionHost {
     this.updateProgress(state);
     this.contentEl.empty();
     this.actionsEl.empty();
+    this.renderedOptions = [];
 
     const hasActions = state.status === 'at-node' || state.status === 'awaiting-loop-pick';
     this.rootEl?.toggleClass('rp-state-actions', hasActions);
@@ -449,6 +598,7 @@ export class RunnerSessionHost {
             bindClick: (element, handler) => element.addEventListener('click', handler),
             bindInput: (element, handler) => element.addEventListener('input', handler),
             bindKeydown: (element, handler) => element.addEventListener('keydown', handler),
+            registerOption: (option) => this.renderedOptions.push(option),
             scheduleTextareaResize: (textarea, resize) => {
               this.deferTextareaResize(
                 textarea,
@@ -543,6 +693,7 @@ export class RunnerSessionHost {
             bindClick: (element, handler) => element.addEventListener('click', handler),
             bindInput: (element, handler) => element.addEventListener('input', handler),
             bindKeydown: (element, handler) => element.addEventListener('keydown', handler),
+            registerOption: (option) => this.renderedOptions.push(option),
             scheduleTextareaResize: (textarea, resize) => {
               this.deferTextareaResize(
                 textarea,
@@ -617,6 +768,81 @@ export class RunnerSessionHost {
         return exhaustive;
       }
     }
+  }
+
+  /** Runs after every state render: badges, hint row, and optional focus restore. */
+  private finalizeRender(): void {
+    if (!this.mounted) {
+      this.focusAfterRender = false;
+      this.focusWasInsideBeforeRender = false;
+      return;
+    }
+    this.applyOptionBadges();
+    this.renderKeyHints();
+    const shouldRestoreFocus = this.focusAfterRender || this.focusWasInsideBeforeRender;
+    this.focusAfterRender = false;
+    this.focusWasInsideBeforeRender = false;
+    if (!shouldRestoreFocus) return;
+    const lifecycleGeneration = this.lifecycleGeneration;
+    // Deferred: the answer-focus timer scheduled during the render runs first, so
+    // a projected free-text field keeps the caret instead of the root.
+    globalThis.setTimeout(() => {
+      if (this.isLifecycleCurrent(lifecycleGeneration)) this.focusRootIfFree();
+    }, 0);
+  }
+
+  /** Numbered selection is visible: first nine options get a badge + shortcut. */
+  private applyOptionBadges(): void {
+    this.renderedOptions.forEach((option, index) => {
+      if (index >= MAX_NUMBERED_OPTIONS) return;
+      const key = String(index + 1);
+      option.element.setAttribute('data-rp-key', key);
+      (option.keyboardElement ?? option.element).setAttribute('aria-keyshortcuts', key);
+    });
+  }
+
+  /** Rebuilt per render: only the actions available in the current state appear. */
+  private renderKeyHints(): void {
+    const hintsEl = this.hintsEl;
+    if (hintsEl === null || !this.mounted) return;
+    hintsEl.empty();
+    hintsEl.toggleClass('is-hidden', !this.hintsVisible);
+    if (!this.hintsVisible) return;
+
+    const context = this.buildKeyContext(this.runner.getState());
+    const t = this.options.t;
+    if (context.optionCount > 0) {
+      const last = Math.min(context.optionCount, MAX_NUMBERED_OPTIONS);
+      this.appendKeyHint(hintsEl, last === 1 ? '1' : `1–${last}`, t('protocolRunner.hintChoose'));
+    }
+    if (context.canStepBack) this.appendKeyHint(hintsEl, 'Z', t('protocolRunner.hintBack'));
+    if (context.canRedo) this.appendKeyHint(hintsEl, 'X', t('protocolRunner.hintRedo'));
+    if (context.canSkip) this.appendKeyHint(hintsEl, 'S', t('protocolRunner.hintSkip'));
+    if (context.hasFreeTextOption) this.appendKeyHint(hintsEl, 'F', t('protocolRunner.hintFreeText'));
+    if (context.hasConclusionDraft) this.appendKeyHint(hintsEl, 'C', t('protocolRunner.hintConclusion'));
+    if (context.canInsertConclusion) this.appendKeyHint(hintsEl, 'V', t('protocolRunner.hintInsert'));
+    this.appendKeyHint(hintsEl, 'H', t('protocolRunner.hintHints'));
+    this.appendKeyHint(hintsEl, 'Esc', t('protocolRunner.hintClose'));
+  }
+
+  private appendKeyHint(parent: HTMLElement, keys: string, label: string): void {
+    const chip = parent.createSpan({ cls: 'rp-runner-key-hint' });
+    chip.createEl('kbd', { cls: 'rp-runner-key-hint-key', text: keys });
+    chip.createSpan({ cls: 'rp-runner-key-hint-label', text: label });
+  }
+
+  /** Focuses the root only when focus is free or already inside the runner. */
+  private focusRootIfFree(): void {
+    const root = this.rootEl;
+    if (root === null) return;
+    const active = currentActiveElement();
+    const body = typeof document === 'undefined' ? null : document.body;
+    if (active !== null && active !== body) {
+      const insideRoot = root.contains(active as Node);
+      if (insideRoot && active !== root) return;
+      if (!insideRoot) return;
+    }
+    root.focus({ preventScroll: true });
   }
 
   private renderFooterCloseButton(): void {

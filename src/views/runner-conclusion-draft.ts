@@ -88,6 +88,12 @@ export class RunnerConclusionDraft {
       .filter(text => text.trim()).join('\n');
   }
 
+  /** Public focus target for the runner keymap (C). */
+  focusInput(): void {
+    if (this.destroyed) return;
+    this.input.focus();
+  }
+
   hasUninsertedText(): boolean {
     const text = this.getText();
     return Boolean(text.trim()) && text !== this.insertedText;

@@ -12,6 +12,7 @@ import { orderedOutgoingEdges } from '../../graph/edge-order';
 import type { RunnerState } from '../runner-state';
 import { createButton, createTextarea, growAutoTextarea } from '../../utils/dom-helpers';
 import type { Translator } from '../../i18n';
+import type { RunnerOptionTarget } from '../option-target';
 
 type AwaitingLoopPickState = Extract<RunnerState, { status: 'awaiting-loop-pick' }>;
 
@@ -19,6 +20,8 @@ export interface LoopPickerHost {
   bindClick(el: HTMLElement, handler: (ev: MouseEvent) => void): void;
   bindInput(el: HTMLTextAreaElement, handler: (ev: Event) => void): void;
   bindKeydown(el: HTMLTextAreaElement, handler: (ev: KeyboardEvent) => void): void;
+  /** Registers the option for numbered keyboard selection, in render order. */
+  registerOption(option: RunnerOptionTarget): void;
   scheduleTextareaResize(textarea: HTMLTextAreaElement, resize: () => void): void;
   renderError(messages: string[]): void;
   getAnswerDraft(answerId: string): string;
@@ -100,6 +103,13 @@ function appendLoopFreeTextAnswer(
   host.bindClick(submitButton, () => {
     void host.onSubmitFreeText(edge, textarea.value);
   });
+  // A digit aimed at a free-text loop target focuses the field; see the
+  // matching rule in render-question.ts.
+  host.registerOption({
+    element: row,
+    keyboardElement: textarea,
+    activate: () => textarea.focus(),
+  });
 
   host.scheduleTextareaResize(textarea, () => growTextarea(textarea));
   return { answerId: answerNode.id, textarea };
@@ -179,9 +189,11 @@ export function renderLoopPicker(
       attr: caption.trim() === '' ? { 'aria-label': accessibleTargetCaption } : undefined,
     });
     actionableOptionCount += 1;
-    host.bindClick(btn, () => {
+    const activate = (): void => {
       void host.onChooseLoopBranch(edge, exit);
-    });
+    };
+    host.bindClick(btn, activate);
+    host.registerOption({ element: btn, activate });
   }
   requestProjectedAnswerFocus(freeTextControls, actionableOptionCount, host);
 

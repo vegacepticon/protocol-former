@@ -324,8 +324,8 @@
   },
   "protocolRunner": {
     "legacyLoopRuntime": "Обнаружен устаревший узел loop-start/loop-end. Канвас должен быть отклонён validator-ом; если вы видите это сообщение — это программная ошибка, сообщите автору плагина.",
-    "stepBack": "Вернуться на шаг назад (Ctrl+←)",
-    "stepRedo": "Повторить (Ctrl+→)",
+    "stepBack": "Вернуться на шаг назад (Z / Ctrl+←)",
+    "stepRedo": "Повторить (X / Ctrl+→)",
     "stepSkip": "Пропустить этот вопрос",
     "closeProtocol": "Закрыть протокол (Esc)",
     "progressLabel": "Прогресс протокола {percent}%",
@@ -334,9 +334,16 @@
     "loadingSnippets": "Загрузка сниппетов…",
     "freeTextSubmit": "Отправить",
     "freeTextBlankError": "Введите текст перед отправкой.",
-    "keyStepBack": "Ctrl+← Назад",
-    "keyStepRedo": "Ctrl+→ Повторить",
-    "keyClose": "Esc Закрыть"
+    "hintsLabel": "Горячие клавиши",
+    "hintChoose": "Выбор",
+    "hintBack": "Назад",
+    "hintRedo": "Вперёд",
+    "hintSkip": "Пропуск",
+    "hintFreeText": "Ввод",
+    "hintConclusion": "Черновик",
+    "hintInsert": "Вставить",
+    "hintHints": "Клавиши",
+    "hintClose": "Закрыть"
   },
   "inlineRunner": {
     "protocolFileNotFound": "Файл протокола не найден: \"{path}\".",

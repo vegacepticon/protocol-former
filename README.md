@@ -72,18 +72,29 @@ To assign a hotkey, open **Settings → Hotkeys**, search for the command name (
 
 ### Keyboard shortcuts inside the runner
 
-These keys work while the runner has focus. Typing in a text field is never intercepted.
+The runner takes focus when it opens and returns focus to itself after each action, so the next key lands in the runner. It never takes focus back while you are typing in the note. Typing in a text field is never intercepted. Letters and digits match physical key positions, so the Russian layout works without remapping, and a small hint row above the runner buttons lists the shortcuts available right now.
 
 | Key | Action |
 |---|---|
-| `Ctrl+←` or `Alt+←` | Back one step. |
-| `Ctrl+→` or `Alt+→` | Redo the undone step. |
+| `1`–`9` | Choose the matching option: answers, question transitions, snippet branches, loop body or exit. Each option shows its number. A free-text option focuses its field instead of submitting it. |
+| `Z` | Back one step. |
+| `X` | Redo the undone step. |
+| `S` | Skip the current question (when it has preset answers). |
+| `Backspace` | Alias of `Z`. |
+| `Ctrl+←` or `Alt+←` | Back one step (legacy alias). |
+| `Ctrl+→` or `Alt+→` | Redo the undone step (legacy alias). |
+| `F` | Focus the free-text answer field; when a question has several, the first blank one. |
+| `C` | Focus the conclusion draft. |
+| `V` | Insert the conclusion draft into the bound note. |
+| `H` | Show or hide the hint row. |
 | `Esc` | Close the runner when focus is not in a text field. If the conclusion draft contains uninserted text, RadiProtocol asks before discarding it. |
 | `Shift+Enter` | Submit a free-text answer, or confirm the snippet fill-in modal. |
 | `Enter` | Add the current line as an item in the conclusion draft. |
 | `Shift+Enter` in the draft | Insert a line break instead of adding an item. |
 | `Tab` / `Shift+Tab` | Move focus forward or backward. |
 | `j` / `k` | Move through snippet picker results when the result list has focus. |
+
+Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases. The hint row is session state: it is not saved in settings.
 
 ### Floating panel or right sidebar
 

@@ -14,6 +14,23 @@
   background: var(--background-primary);
 }
 
+.rp-runner-session-title {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  padding: var(--size-2-3) var(--size-4-2) 0;
+}
+
+.rp-runner-session-title-text {
+  overflow: hidden;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-semibold);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .rp-runner-session-progress {
   display: flex;
   align-items: center;
@@ -117,13 +134,45 @@
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  min-height: 36px;
+  min-height: 40px;
   height: auto;
   padding: var(--size-2-3) var(--size-4-2);
   overflow-wrap: anywhere;
   white-space: normal;
   word-break: break-word;
   text-align: left;
+}
+
+/* Numbered selection: the badge is decorative and derives from the keymap. */
+.rp-runner-session-actions [data-rp-key] {
+  position: relative;
+  padding-left: calc(var(--size-4-2) + 2ch + var(--size-2-3));
+}
+
+.rp-runner-session-actions [data-rp-key]::before {
+  content: attr(data-rp-key);
+  position: absolute;
+  top: 50%;
+  left: var(--size-2-2);
+  box-sizing: border-box;
+  width: 2ch;
+  transform: translateY(-50%);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.rp-runner-session-actions .rp-free-text-answer[data-rp-key] {
+  /* Higher specificity than the base free-text padding so the badge gutter wins. */
+  padding-left: calc(var(--size-4-2) + 2ch + var(--size-2-3));
+}
+
+.rp-runner-session-actions .rp-free-text-answer[data-rp-key]::before {
+  top: var(--size-4-2);
+  transform: none;
 }
 
 .rp-runner-session-actions .rp-question-transition-list {
@@ -140,6 +189,43 @@
   padding: var(--size-2-3) var(--size-4-2);
   border-top: 1px solid var(--background-modifier-border);
   background: var(--background-primary);
+}
+
+.rp-runner-key-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-1) var(--size-2-3);
+  margin-bottom: var(--size-2-2);
+}
+
+.rp-runner-key-hints.is-hidden {
+  display: none;
+}
+
+.rp-runner-key-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.2;
+}
+
+.rp-runner-key-hint-label {
+  white-space: nowrap;
+}
+
+.rp-runner-key-hint-key {
+  min-width: 1.6em;
+  padding: 0 var(--size-2-1);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  text-align: center;
 }
 
 .rp-runner-session-footer-btn-row {
@@ -491,4 +577,24 @@
 
 .rp-runner-draft-insert {
   align-self: center;
+}
+
+/* Visible keyboard focus for every runner control that participates in the
+ * numbered/letter dispatch, plus the icon buttons and the draft insert action. */
+.rp-runner-session-actions .rp-answer-btn:focus-visible,
+.rp-runner-session-actions .rp-question-transition-btn:focus-visible,
+.rp-runner-session-actions .rp-snippet-branch-btn:focus-visible,
+.rp-runner-session-actions .rp-loop-body-btn:focus-visible,
+.rp-runner-session-actions .rp-loop-exit-btn:focus-visible,
+.rp-runner-session-actions .rp-free-text-answer-submit:focus-visible,
+.rp-runner-draft-insert:focus-visible,
+.rp-runner-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* The root is focused programmatically (tabindex="-1"), so it must not paint a
+ * ring around the whole panel. */
+.rp-runner-session-root:focus {
+  outline: none;
 }
