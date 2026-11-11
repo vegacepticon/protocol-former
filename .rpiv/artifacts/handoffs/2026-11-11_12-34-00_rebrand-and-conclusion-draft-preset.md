@@ -1,6 +1,7 @@
 ---
 date: 2026-11-11T12:34:34+0300
 author: Roman Shulgha
+commit: be4a606
 branch: main
 repository: protocol-former
 topic: "Rebrand to Protocol Former and per-protocol conclusion draft preset"
@@ -138,13 +139,23 @@ New/updated tests:
 
 - Version `3.7.0` in `package.json`, `manifest.json`, `package-lock.json`;
   `versions.json` maps `3.7.0 → 1.5.7`.
-- `manifest.json` and `versions.json` were updated by `npm version`; the staged
-  changes were unstaged again, so the whole rebrand + feature is one uncommitted
-  worktree diff for review.
-- **No tag and no release were created.** Do not tag until the user explicitly
-  authorizes a release. The next release would be `3.7.0`.
+- All rebrand + feature changes are committed as `be4a606`
+  (`feat: rebrand to Protocol Former and seed runner draft from protocol preset`).
+- Annotated tag `3.7.0` points at `be4a606`; `main` and the tag are pushed to
+  `https://github.com/vegacepticon/protocol-former`.
+- Release published (not draft, not prerelease):
+  `https://github.com/vegacepticon/protocol-former/releases/tag/3.7.0`.
+  - `main.js` — 581584 bytes, sha256 `5decedd3ad910904ad15ea6ba353e60eab07ebe3236225af94da9da3765aa4cd`
+  - `styles.css` — 93743 bytes, sha256 `345b6c06f0d853991e5a055da6156594019b851b5a3269d1ff86aae9da795cff`
+  - `manifest.json` — 301 bytes, sha256 `42340ec28ce1b7f4f0a13897150a06625d8935cca394ff0d8daecd1ad44cb8f8`
+  - The three assets are byte-identical to the local `npm run build` output.
+- Release workflow and CI on `main` are green. The prune step kept the three
+  newest releases: `3.7.0`, `3.6.24`, `3.6.23`.
 - Release mechanics are unchanged; the repo URL in the documentation points to
   `vegacepticon/protocol-former`; the GitHub repository has already been renamed.
+- BRAT install/update path is now `vegacepticon/protocol-former`; existing BRAT
+  entries that still name `vegacepticon/RadiProtocol` should follow the GitHub
+  rename redirect or be re-added.
 
 ## Manual checks still worth doing in Obsidian
 
