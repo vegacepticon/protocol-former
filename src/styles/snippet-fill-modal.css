@@ -264,3 +264,31 @@
 .rp-snippet-fill-option-row.is-selected:hover {
   background: var(--interactive-accent-hover);
 }
+
+/* Numbered selection: mirrors the runner's `data-rp-key` badge so the digit
+   the keyboard model accepts is visible on the pill itself. */
+.rp-snippet-modal-options .rp-snippet-fill-option-row[data-rp-key] {
+  position: relative;
+  padding-left: calc(var(--size-4-2) + 2ch + var(--size-2-3));
+}
+
+.rp-snippet-modal-options .rp-snippet-fill-option-row[data-rp-key]::before {
+  content: attr(data-rp-key);
+  position: absolute;
+  top: 50%;
+  left: var(--size-2-2);
+  box-sizing: border-box;
+  width: 2ch;
+  transform: translateY(-50%);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.rp-snippet-fill-option-row.is-selected[data-rp-key]::before {
+  border-color: var(--text-on-accent);
+  color: var(--text-on-accent);
+}

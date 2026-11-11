@@ -1374,3 +1374,29 @@ describe('SnippetFillInModal — numeric option toggles', () => {
     expect(preventDefault).not.toHaveBeenCalled();
   });
 });
+
+describe('SnippetFillInModal — visible digit badges on choice options', () => {
+  it('numbers the first nine options and stops there', () => {
+    const ten = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const { options } = openModalWithChoice(ten);
+
+    expect(options).toHaveLength(10);
+    expect(options.slice(0, 9).map((btn) => btn.getAttribute('data-rp-key')))
+      .toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9']);
+    expect(options[0]!.getAttribute('aria-keyshortcuts')).toBe('1');
+    // The keymap only accepts 1-9, so later pills stay unnumbered.
+    expect(options[9]!.getAttribute('data-rp-key')).toBeNull();
+    expect(options[9]!.getAttribute('aria-keyshortcuts')).toBeNull();
+  });
+
+  it('keeps the badge in sync with what the digit actually toggles', () => {
+    const { root, options } = openModalWithChoice(['A', 'B', 'C']);
+    const fieldset = root.querySelector('fieldset')!;
+
+    const shown = options[2]!.getAttribute('data-rp-key');
+    expect(shown).toBe('3');
+    dispatchKeydownOn(fieldset, options[0]!, shown!, { code: `Digit${shown}` });
+
+    expect(options[2]!.getAttribute('aria-pressed')).toBe('true');
+  });
+});

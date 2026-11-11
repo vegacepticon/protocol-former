@@ -256,6 +256,15 @@ export class SnippetFillInModal extends Modal {
       btn.value = opt;
       btn.setAttribute('aria-pressed', 'false');
 
+      // The digit that toggles this option while the group has focus. Only the
+      // first nine are numbered because that is all the keymap accepts; the
+      // badge keeps the affordance visible instead of hidden in the docs.
+      if (optionButtons.length < 9) {
+        const digit = String(optionButtons.length + 1);
+        btn.setAttribute('data-rp-key', digit);
+        btn.setAttribute('aria-keyshortcuts', digit);
+      }
+
       optionButtons.push(btn);
 
       btn.addEventListener('click', () => {

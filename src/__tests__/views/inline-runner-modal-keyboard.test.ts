@@ -82,4 +82,14 @@ describe('InlineRunnerModal keyboard policy', () => {
     expect(h.close).not.toHaveBeenCalled();
     expect(h.handleKeydown).not.toHaveBeenCalled();
   });
+
+  it.each(['INPUT', 'TEXTAREA'])('lets Ctrl+Space reach the shared host from %s', (tagName) => {
+    const h = setup();
+    // Regression for 3.6.19: the shell used to drop every key from a field, so
+    // the submit chord never reached the host's keymap.
+    const keyboardEvent = event({ key: ' ', ctrlKey: true, target: { tagName } });
+    (h.modal as any).handleKeydown(keyboardEvent);
+    expect(h.handleKeydown).toHaveBeenCalledWith(keyboardEvent);
+    expect(h.close).not.toHaveBeenCalled();
+  });
 });

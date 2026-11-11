@@ -4,6 +4,7 @@ import type RadiProtocolPlugin from '../main';
 import type { InlineRunnerLayout } from '../settings';
 import { InlineRunnerLayoutManager } from './inline-runner-layout';
 import { RunnerSessionHost } from './runner-session-host';
+import { isConfirmChord, isTextEntryTarget } from '../runner/keymap';
 
 // Re-export clamp functions for backward compatibility (tests import from this module).
 export { clampInlineRunnerPosition, clampInlineRunnerLayout } from './inline-runner-layout';
@@ -248,7 +249,11 @@ export class InlineRunnerModal {
 
   private handleKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
-    if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+    // Inside a field every key stays native, except Ctrl+Space: it submits the
+    // field that owns the event and has to reach the shared keymap. The shell
+    // still bails out for everything else so Escape in a field cannot close the
+    // runner and typing is never intercepted.
+    if (isTextEntryTarget(target) && !isConfirmChord(event)) return;
     // The shared host owns the whole keymap, Escape included (its close path
     // runs the uninserted-draft confirmation). The shell keeps a close fallback
     // for the window where the host is gone but the container still listens.

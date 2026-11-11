@@ -7,6 +7,7 @@ import {
 } from 'obsidian';
 import type RadiProtocolPlugin from '../main';
 import { RunnerSessionHost } from './runner-session-host';
+import { isConfirmChord, isTextEntryTarget } from '../runner/keymap';
 import { guardRunnerTabClose } from './runner-tab-close-guard';
 
 export const SIDEBAR_RUNNER_VIEW_TYPE = 'radiprotocol-sidebar-runner';
@@ -341,9 +342,11 @@ export class SidebarRunnerView extends ItemView {
 
   private handleKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
-    if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-      return;
-    }
+    // Inside a field every key stays native, except Ctrl+Space: it submits the
+    // field that owns the event and has to reach the shared keymap. The shell
+    // still bails out for everything else so Escape in a field cannot close the
+    // runner and typing is never intercepted.
+    if (isTextEntryTarget(target) && !isConfirmChord(event)) return;
     // Escape and every runner shortcut resolve in the shared host; the shell
     // closes the leaf itself only when the host is missing or not mounted yet.
     if (this.sessionHost?.handleKeydown(event) === true) return;

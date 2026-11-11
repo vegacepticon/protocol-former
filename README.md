@@ -93,11 +93,11 @@ The runner takes focus when it opens and returns focus to itself after each acti
 | `Enter` | Add the current line as an item in the conclusion draft. |
 | `Shift+Enter` in the draft | Insert a line break instead of adding an item. |
 | `Tab` / `Shift+Tab` | Move focus forward or backward. |
-| `j` / `k` | Move through snippet picker results when the result list has focus. |
+| `j` / `k` / `Tab` / `Shift+Tab` | Move through snippet picker results when the result list has focus. `Tab` from the last row and `Shift+Tab` from the first row leave the list for the next control (the first row hands focus back to the search field). |
 
 Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is session state: it is not saved in settings.
 
-Inside the snippet fill-in modal the caret starts in the first placeholder, so no `Tab` is needed to begin typing. A choice field is a single `Tab` stop: the arrow keys move between its options and the `✎` Custom toggle, `1`–`9` toggle the matching option without leaving the group (digits still type themselves inside a text field), and `Tab` leaves the group for the next field. `Ctrl+Space` confirms from anywhere in the modal; `Shift+Enter` keeps working as a legacy alias.
+Inside the snippet fill-in modal the caret starts in the first placeholder, so no `Tab` is needed to begin typing. A choice field is a single `Tab` stop: the arrow keys move between its options and the `✎` Custom toggle, `1`–`9` toggle the numbered option without leaving the group (each pill shows its number, and digits still type themselves inside a text field), and `Tab` leaves the group for the next field. `Ctrl+Space` confirms from anywhere in the modal; `Shift+Enter` keeps working as a legacy alias.
 
 ### Floating panel or right sidebar
 

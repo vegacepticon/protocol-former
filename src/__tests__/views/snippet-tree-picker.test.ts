@@ -1371,7 +1371,8 @@ describe('Vim-style navigation (Tab handoff + j/k)', () => {
   /** Simulate a keydown that BUBBLED from the search input up to the root:
    *  MockEl.dispatchEvent has no bubbling, so dispatch on the root with the
    *  target overridden to the input. */
-  function triggerBubbledKeydown(root: MockEl, input: MockEl, key: string, mods: Parameters<typeof triggerKeydown>[2] = {}): void {
+  function triggerBubbledKeydown(root: MockEl, input: MockEl, key: string, mods: Parameters<typeof triggerKeydown>[2] = {}): ReturnType<typeof vi.fn> {
+    const preventDefault = vi.fn();
     root.dispatchEvent({
       type: 'keydown',
       key,
@@ -1381,8 +1382,9 @@ describe('Vim-style navigation (Tab handoff + j/k)', () => {
       altKey: !!mods.altKey,
       metaKey: !!mods.metaKey,
       shiftKey: !!mods.shiftKey,
-      preventDefault: vi.fn(),
+      preventDefault,
     } as unknown as { type: string; target?: unknown });
+    return preventDefault;
   }
 
   it('Tab from the search input highlights the first row and focuses it', async () => {
@@ -1453,7 +1455,38 @@ describe('Vim-style navigation (Tab handoff + j/k)', () => {
     expect(onSelect).toHaveBeenCalledWith({ kind: 'file', relativePath: 'abdomen/ct.md' });
   });
 
-  it('Shift+Tab from the list returns focus to the search input', async () => {
+  it('walks the list with Tab and Shift+Tab in step with the highlight', async () => {
+    const { container, input, root } = await setupWithRows();
+    triggerKeydown(input, 'Tab'); // → row 0 highlighted and focused
+    const rows = rowsOf(container);
+
+    const tab = triggerBubbledKeydown(root, rows[0]!, 'Tab');
+    expect(tab).toHaveBeenCalledTimes(1);
+    expect(rows[1]!.classList.has('rp-stp-row-highlighted')).toBe(true);
+    expect(rows[0]!.classList.has('rp-stp-row-highlighted')).toBe(false);
+    expect(rows[1]!._focused).toBe(true);
+
+    const back = triggerBubbledKeydown(root, rows[1]!, 'Tab', { shiftKey: true });
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(rows[0]!.classList.has('rp-stp-row-highlighted')).toBe(true);
+    expect(rows[1]!.classList.has('rp-stp-row-highlighted')).toBe(false);
+    expect(rows[0]!._focused).toBe(true);
+  });
+
+  it('Tab from the last row is left to the browser so focus can leave the list', async () => {
+    const { container, input, root } = await setupWithRows();
+    triggerKeydown(input, 'Tab');
+    const rows = rowsOf(container);
+    for (let i = 1; i < rows.length; i += 1) triggerKeydown(root, 'j', { code: 'KeyJ' });
+    const last = rows[rows.length - 1]!;
+    expect(last.classList.has('rp-stp-row-highlighted')).toBe(true);
+
+    const preventDefault = triggerBubbledKeydown(root, last, 'Tab');
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(last.classList.has('rp-stp-row-highlighted')).toBe(true);
+  });
+
+  it('Shift+Tab from the first row returns focus to the search input', async () => {
     const { container, input, root } = await setupWithRows();
 
     triggerKeydown(input, 'Tab'); // → list focused

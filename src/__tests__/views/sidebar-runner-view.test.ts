@@ -462,6 +462,21 @@ describe('SidebarRunnerView close and keyboard policy', () => {
     harness.view.contentEl.dispatchEvent(inputEscape as any);
     expect(harness.leaf.detachCalls).toBe(0);
 
+    // Regression for 3.6.19: Ctrl+Space from a field must reach the host so it
+    // can submit that field; every other key from a field stays native.
+    const confirmFromField = {
+      type: 'keydown',
+      key: ' ',
+      code: 'Space',
+      target: { tagName: 'TEXTAREA' },
+      ctrlKey: true,
+      altKey: false,
+      preventDefault: vi.fn(),
+    } as unknown as KeyboardEvent;
+    harness.view.contentEl.dispatchEvent(confirmFromField as any);
+    expect(hostState.instances[0]!.handleKeydown).toHaveBeenCalledWith(confirmFromField);
+    expect(harness.leaf.detachCalls).toBe(0);
+
     const escape = keyboardEvent('Escape');
     harness.view.contentEl.dispatchEvent(escape as any);
     expect(escape.preventDefault).toHaveBeenCalledTimes(1);

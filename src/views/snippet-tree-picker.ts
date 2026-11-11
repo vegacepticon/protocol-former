@@ -612,12 +612,30 @@ export class SnippetTreePicker {
 
     const rows = this.currentRows();
 
-    // Shift+Tab from the list returns focus to the search input.
-    if (e.key === 'Tab' && e.shiftKey) {
-      if (this.searchInputEl) {
+    // Tab / Shift+Tab walk the list in step with the highlight, like j/k. The
+    // rows are real buttons, so without this native Tab moved focus while the
+    // highlight (and therefore Enter) stayed on the old row. At the boundaries
+    // focus is handed back to the search input (Shift+Tab from the first row)
+    // or left to the browser's order (Tab from the last row), so the list never
+    // traps focus.
+    if (e.key === 'Tab') {
+      if (rows.length === 0) return;
+      const focusedIndex = rows.indexOf(target as HTMLElement);
+      const from = focusedIndex !== -1 ? focusedIndex : this.highlightedIndex;
+      if (e.shiftKey) {
         e.preventDefault();
-        this.searchInputEl.focus({ preventScroll: true });
+        if (from <= 0) {
+          this.searchInputEl?.focus({ preventScroll: true });
+          return;
+        }
+        this.applyHighlight(rows, from - 1);
+        this.highlightedRowEl?.focus({ preventScroll: true });
+        return;
       }
+      if (from === rows.length - 1) return;
+      e.preventDefault();
+      this.applyHighlight(rows, from + 1);
+      this.highlightedRowEl?.focus({ preventScroll: true });
       return;
     }
 
@@ -657,11 +675,6 @@ export class SnippetTreePicker {
     const count = rows.length;
     if (count === 0) return;
 
-    // Toggle the old highlight off (the old element is still live at this point).
-    if (this.highlightedRowEl !== null) {
-      this.highlightedRowEl.classList.remove('rp-stp-row-highlighted');
-    }
-
     let next: number;
     if (this.highlightedIndex === -1) {
       // Nothing highlighted: ArrowDown → first (0), ArrowUp → last (count-1).
@@ -669,7 +682,18 @@ export class SnippetTreePicker {
     } else {
       next = (this.highlightedIndex + delta + count) % count;
     }
-    const row = rows[next]!;
+    this.applyHighlight(rows, next);
+  }
+
+  /** Put the highlight on `next`, re-anchoring an out-of-sync focus, and announce it. */
+  private applyHighlight(rows: HTMLElement[], next: number): void {
+    // Toggle the old highlight off (the old element is still live at this point).
+    if (this.highlightedRowEl !== null) {
+      this.highlightedRowEl.classList.remove('rp-stp-row-highlighted');
+    }
+
+    const row = rows[next];
+    if (row === undefined) return;
 
     row.classList.add('rp-stp-row-highlighted');
     row.scrollIntoView({ block: 'nearest' });
