@@ -7,7 +7,7 @@ repository: RadiProtocol
 topic: "Post-3.6.22 manual test: editor auto-expansion RangeError, editor hotkey routing, phrase-command scope"
 tags: [handoff, release, 3.6.23, expansion, codemirror, hotkey, settings, manual-test]
 status: complete
-last_updated: 2026-11-11T11:25:00+0300
+last_updated: 2026-11-11T11:30:00+0300
 last_updated_by: Roman Shulgha
 type: session_handoff
 supersedes: .rpiv/artifacts/handoffs/2026-11-11_11-05-00_post-3.6.22-manual-test.md
@@ -106,6 +106,9 @@ Live in Obsidian **1.15.0** (working vault), driving the running renderer throug
 - No-match notice: «Ни одна фраза не совпадает со словом перед курсором.»
 - Settings: the description now ends with «…и в редакторе заметок.».
 
+**User confirmation (2026-11-11, after installing 3.6.23):** «Отлично! Теперь работает!» — all
+reported scenarios pass; no further nuances from this round.
+
 `npm run check:release` is green at `3.6.23`: build, ESLint + Stylelint, **1527 tests passed
 (2 skipped)**, planning freshness, consistency (10 commands, 505 i18n keys at parity), agent docs,
 knip, CSS audit, i18n audit.
@@ -114,11 +117,14 @@ knip, CSS audit, i18n audit.
 
 - Version `3.6.23` in `package.json` / `manifest.json` / `package-lock.json`; `versions.json` maps
   `3.6.23 → 1.5.7`.
-- Commits: `87db134` (fix), `ce7b492` (`3.6.23`); tag `3.6.23` pushed.
-- GitHub Actions: CI on `main` and the Release workflow for the tag. Release assets are
-  `main.js`, `manifest.json`, `styles.css`.
-- The working vault's manual install was replaced with the fixed build during live verification so
-  the user could test immediately; it is not a tracked release artifact.
+- Commits: `87db134` (fix), `ce7b492` (`3.6.23`); tag `3.6.23` pushed. The handoff is committed
+  separately.
+- GitHub Actions: CI on `main` and the Release workflow for the tag are green.
+- Release published: https://github.com/vegacepticon/RadiProtocol/releases/tag/3.6.23 — assets
+  `main.js` (sha256 `1c9fe36c…`), `manifest.json`, `styles.css`. The locally built `main.js` is
+  byte-identical to the published asset.
+- The working vault's manual install is updated to `3.6.23` (`main.js`, `manifest.json`,
+  `styles.css`) and was reloaded; it is not a tracked release artifact.
 
 ## Notes / open items
 
@@ -128,5 +134,5 @@ knip, CSS audit, i18n audit.
   list only.
 - If matching auto phrases with the command turns out to be unwanted, the narrow behaviour is a
   one-line change back to `config.hotkeyRules`.
-- Next manual test should cover: a hotkey-mode phrase and an auto phrase in a runner textarea, the
-  same in the note editor, and a trigger typed with a trailing space.
+- User confirmed 3.6.23 works in a manual check. No follow-up bug is open for this round; the next
+  session can start from the backlog in the 3.6.22 handoff or from a fresh manual test.
