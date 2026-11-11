@@ -17,6 +17,9 @@ import type { InstalledRecord } from './library/library-model';
 import { WriteMutex } from './utils/write-mutex';
 import { I18nService } from './i18n';
 import { normalizeProtocolFolderPath, resolveProtocolDocumentFiles } from './protocol/protocol-file-resolver';
+import { setTextExpansionConfig } from './expansion/config';
+import { textExpansionExtension } from './expansion/editor';
+import { parseRuleLines } from './expansion/rules';
 // Phase 45 (LOOP-06): start-from-node command dependencies
 import { NodePickerModal, buildStartableProtocolNodeOptions } from './views/node-picker-modal';
 // Phase 54: inline protocol display mode
@@ -86,6 +89,11 @@ export default class RadiProtocolPlugin extends Plugin {
       await this.saveSettings();
     }
     this.i18n = new I18nService(this.settings.locale);
+
+    // Typed text expansion: push the parsed snapshot once, then keep it in sync
+    // from saveSettings(). The editor extension reads it at event time.
+    this.applyTextExpansionSettings();
+    this.registerEditorExtension(textExpansionExtension());
 
     // Instantiate pure modules (no Obsidian dependency)
     // Phase 84 (I18N-02): inject the i18n translator so parse-time error messages follow the active locale.
@@ -309,7 +317,22 @@ export default class RadiProtocolPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
+    this.applyTextExpansionSettings();
     await this.saveData(this.settings);
+  }
+
+  /**
+   * Rebuilds the parsed text-expansion snapshot the adapters read.
+   * Called on load and from saveSettings(), so every settings change is live
+   * without restarting Obsidian or reconfiguring the editor extension.
+   */
+  applyTextExpansionSettings(): void {
+    setTextExpansionConfig({
+      enabled: this.settings.textExpansionEnabled === true,
+      mode: this.settings.textExpansionMode === 'delimiter' ? 'delimiter' : 'auto',
+      inEditor: this.settings.textExpansionInEditor !== false,
+      rules: parseRuleLines(this.settings.textExpansionRules ?? '').rules,
+    });
   }
 
   getInlineRunnerPosition(): InlineRunnerLayout | null {

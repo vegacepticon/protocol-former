@@ -5,6 +5,7 @@ import { nodeLabel } from '../../graph/node-label';
 import type { AnswerNode, ProtocolGraph, RPEdge, SnippetNode } from '../../graph/graph-model';
 import type { Translator } from '../../i18n';
 import { createButton, createTextarea, growAutoTextarea } from '../../utils/dom-helpers';
+import { attachTextExpansion } from '../../expansion/textarea';
 import type { RunnerState } from '../runner-state';
 import type { RunnerOptionTarget } from '../option-target';
 import { isFileBoundSnippetNode, snippetBranchLabel } from '../snippet-label';
@@ -79,6 +80,7 @@ function appendFreeTextAnswer(
     // Start at a single compact line; growTextarea expands it as content grows.
     attr: { rows: 1 },
   });
+  attachTextExpansion(textarea);
   textarea.value = host.getAnswerDraft(answerNode.id);
 
   let alertElement: HTMLElement | null = null;

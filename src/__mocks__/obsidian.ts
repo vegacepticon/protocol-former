@@ -186,6 +186,9 @@ interface MockInputEl {
   type: string;
   min: string;
   value: string;
+  rows?: number;
+  classList: Set<string>;
+  addClass: (cls: string) => void;
   addEventListener: (type: string, cb: (evt: MockInputEvent) => void) => void;
   dispatchEvent: (evt: MockInputEvent) => boolean;
 }
@@ -196,10 +199,13 @@ const mockAbstractInputSuggestInstances: AbstractInputSuggest<unknown>[] = [];
 
 function makeMockInputEl(): MockInputEl {
   const listeners = new Map<string, Array<(evt: MockInputEvent) => void>>();
+  const classes = new Set<string>();
   return {
     type: '',
     min: '',
     value: '',
+    classList: classes,
+    addClass: (cls: string) => { classes.add(cls); },
     addEventListener: (type: string, cb: (evt: MockInputEvent) => void) => {
       const existing = listeners.get(type) ?? [];
       existing.push(cb);

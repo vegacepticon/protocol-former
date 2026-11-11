@@ -118,6 +118,33 @@ Protocol navigation, Back and Redo leave the draft unchanged. Uninserted text pr
 
 Drafts exist **only for the current run**. They are not saved in protocol files or settings, and do not survive a restart. The feature is enabled by default; the **Conclusion draft in runner** setting applies to new runs.
 
+## Text expansion
+
+RadiProtocol can expand typed triggers into longer text, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
+
+Enable it in **Settings → RadiProtocol → Text expansion**. Two modes:
+
+- **As you type (auto-replace)** — the trigger is replaced the moment it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
+- **On Space (snippets)** — type a whole word and press Space to replace it: `;sig` becomes your signature, and the space is consumed. This is the Text Snippets behaviour.
+
+Rules are one per line as `trigger => replacement` (`→` also works as the separator):
+
+```text
+--> => →
+<-- => ←
+!= => ≠
+;sig => Best regards,$nl$Roman$end$
+```
+
+In a replacement, `\n`, `\t`, `\b` and `\\` are character escapes, `$nl$` inserts a line break, and `$end$` marks where the caret lands after expansion (default: the end). Lines starting with `#` are comments, and triggers cannot contain spaces. Lines that cannot be parsed are counted under the rules field and ignored.
+
+Notes and limits:
+
+- Expansion applies to direct typing only; pasted text is never rewritten.
+- In plugin text fields the replacement bypasses the browser's native undo (one Ctrl+Z does not restore the trigger). The note editor keeps its normal undo history.
+- Tab is not a delimiter: it moves focus in modals and indents lists in the editor. Only Space expands snippets.
+- If another expansion plugin is still enabled, turn it off to avoid double expansion in the note editor.
+
 ## Self-check
 
 A protocol can define a completion checklist. In the protocol editor, open the checklist button in the floating toolbar to enable the self-check and add items. After the final question, the runner shows the checklist instead of closing immediately. The runner closes when every item is checked — unless the conclusion draft still has uninserted text.

@@ -11,6 +11,7 @@ import { nodeLabel } from '../../graph/node-label';
 import { orderedOutgoingEdges } from '../../graph/edge-order';
 import type { RunnerState } from '../runner-state';
 import { createButton, createTextarea, growAutoTextarea } from '../../utils/dom-helpers';
+import { attachTextExpansion } from '../../expansion/textarea';
 import type { Translator } from '../../i18n';
 import type { RunnerOptionTarget } from '../option-target';
 
@@ -65,6 +66,7 @@ function appendLoopFreeTextAnswer(
     cls: 'rp-free-text-answer-textarea',
     attr: { rows: 1 },
   });
+  attachTextExpansion(textarea);
   textarea.value = host.getAnswerDraft(answerNode.id);
 
   let alertElement: HTMLElement | null = null;

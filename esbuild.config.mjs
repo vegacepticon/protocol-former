@@ -38,6 +38,8 @@ const CSS_FILES = [
   'inline-runner',
   'protocol-editor',
   'donate-section',
+  // Typed text expansion (rules editor lives in the settings tab).
+  'expansion',
   // Phase 6 (library): community library view + modals + read-only integration surface.
   'library',
   // Persistent right-sidebar plugin menu.

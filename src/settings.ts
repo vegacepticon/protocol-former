@@ -5,6 +5,7 @@ import type RadiProtocolPlugin from './main';
 import { FolderSuggest } from './views/folder-suggest';
 import { DONATE_WALLETS } from './donate/wallets';
 import { normalizeProtocolFolderPath } from './protocol/protocol-file-resolver';
+import { DEFAULT_TEXT_EXPANSION_RULES, parseRuleLines } from './expansion/rules';
 
 /** Phase 67 (D-05): renamed from InlineRunnerPosition; width/height optional for back-compat (D-06).
  *  Existing on-disk records have only {left, top}; missing width/height fall back to
@@ -53,6 +54,14 @@ export interface RadiProtocolSettings {
   librarySubmissionBindings?: Record<string, { packageId: string; lastAcceptedVersion?: string }>;
   /** Last vault folder used for a local package export (empty = never exported). */
   libraryLastExportFolder?: string;
+  /** Typed text expansion (the Substitutions / Text Snippets replacement). Absent = off. */
+  textExpansionEnabled?: boolean;
+  /** 'auto' replaces while typing; 'delimiter' expands a word on Space. Absent = 'auto'. */
+  textExpansionMode?: 'auto' | 'delimiter';
+  /** Raw rules, one per line: `trigger => replacement` (see expansion/rules.ts). */
+  textExpansionRules?: string;
+  /** Also expand inside the note editor. Absent = true. */
+  textExpansionInEditor?: boolean;
 }
 
 export const DEFAULT_SETTINGS: RadiProtocolSettings = {
@@ -68,10 +77,15 @@ export const DEFAULT_SETTINGS: RadiProtocolSettings = {
   libraryLastSubmittedVersions: {},
   librarySubmissionBindings: {},
   libraryLastExportFolder: '',
+  textExpansionEnabled: false,
+  textExpansionMode: 'auto',
+  textExpansionRules: DEFAULT_TEXT_EXPANSION_RULES,
+  textExpansionInEditor: true,
 };
 
 export class RadiProtocolSettingsTab extends PluginSettingTab {
   private plugin: RadiProtocolPlugin;
+  private expansionSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(app: App, plugin: RadiProtocolPlugin) {
     super(app, plugin);
@@ -134,6 +148,64 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
           this.plugin.settings.enableRunnerDraft = value;
           await this.plugin.saveSettings();
         }));
+
+    // Group 1.5 — Typed text expansion (the Substitutions / Text Snippets replacement)
+    new Setting(containerEl).setName(this.plugin.i18n.t('settings.expansionHeading')).setHeading();
+
+    new Setting(containerEl)
+      .setName(this.plugin.i18n.t('settings.textExpansionEnabled'))
+      .setDesc(this.plugin.i18n.t('settings.textExpansionEnabledDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.textExpansionEnabled === true)
+        .onChange(async (value) => {
+          this.plugin.settings.textExpansionEnabled = value;
+          this.plugin.applyTextExpansionSettings();
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName(this.plugin.i18n.t('settings.textExpansionMode'))
+      .setDesc(this.plugin.i18n.t('settings.textExpansionModeDesc'))
+      .addDropdown(drop => drop
+        .addOption('auto', this.plugin.i18n.t('settings.textExpansionModeAuto'))
+        .addOption('delimiter', this.plugin.i18n.t('settings.textExpansionModeDelimiter'))
+        .setValue(this.plugin.settings.textExpansionMode ?? 'auto')
+        .onChange(async (value) => {
+          this.plugin.settings.textExpansionMode = value as 'auto' | 'delimiter';
+          this.plugin.applyTextExpansionSettings();
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName(this.plugin.i18n.t('settings.textExpansionInEditor'))
+      .setDesc(this.plugin.i18n.t('settings.textExpansionInEditorDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.textExpansionInEditor !== false)
+        .onChange(async (value) => {
+          this.plugin.settings.textExpansionInEditor = value;
+          this.plugin.applyTextExpansionSettings();
+          await this.plugin.saveSettings();
+        }));
+
+    let expansionStatusEl: HTMLElement | null = null;
+    new Setting(containerEl)
+      .setName(this.plugin.i18n.t('settings.textExpansionRules'))
+      .setDesc(this.plugin.i18n.t('settings.textExpansionRulesDesc'))
+      .addTextArea(text => {
+        text.inputEl.rows = 10;
+        text.inputEl.addClass('rp-expansion-rules');
+        text
+          .setPlaceholder(this.plugin.i18n.t('settings.textExpansionRulesPlaceholder'))
+          .setValue(this.plugin.settings.textExpansionRules ?? '')
+          .onChange((value) => {
+            this.plugin.settings.textExpansionRules = value;
+            this.plugin.applyTextExpansionSettings();
+            this.updateExpansionRuleStatus(expansionStatusEl, value);
+            this.scheduleExpansionSave();
+          });
+      });
+    expansionStatusEl = containerEl.createEl('p', { cls: 'rp-expansion-rules-status' });
+    this.updateExpansionRuleStatus(expansionStatusEl, this.plugin.settings.textExpansionRules ?? '');
 
     // Group 2 — Storage
     new Setting(containerEl).setName(this.plugin.i18n.t('settings.storageHeading')).setHeading();
@@ -225,5 +297,27 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
         })
       );
     }
+  }
+
+  /**
+   * Show how many author lines are not valid rules. Silent ignoring is worse
+   * than a visible count: a typo would otherwise look like a broken trigger.
+   */
+  private updateExpansionRuleStatus(el: HTMLElement | null, source: string): void {
+    if (el === null) return;
+    const { invalid } = parseRuleLines(source);
+    el.toggleClass('is-hidden', invalid.length === 0);
+    el.setText(invalid.length === 0
+      ? ''
+      : this.plugin.i18n.t('settings.textExpansionInvalid', { count: String(invalid.length) }));
+  }
+
+  /** The rules textarea changes per keystroke; persist it on a short delay. */
+  private scheduleExpansionSave(): void {
+    if (this.expansionSaveTimer !== null) clearTimeout(this.expansionSaveTimer);
+    this.expansionSaveTimer = setTimeout(() => {
+      this.expansionSaveTimer = null;
+      void this.plugin.saveSettings();
+    }, 400);
   }
 }

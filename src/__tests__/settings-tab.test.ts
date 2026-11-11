@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, RadiProtocolSettingsTab, type RadiProtocolSettings } from '../settings';
+import { parseRuleLines } from '../expansion/rules';
 import {
   __getMockAbstractInputSuggestInstances,
   __getMockTextComponents,
@@ -28,6 +29,15 @@ describe('Settings defaults (RUN-07)', () => {
     expect(DEFAULT_SETTINGS.enableRunnerDraft).toBe(true);
   });
 
+  it('defaults text expansion to disabled, auto mode, editor enabled, with valid starter rules', () => {
+    expect(DEFAULT_SETTINGS.textExpansionEnabled).toBe(false);
+    expect(DEFAULT_SETTINGS.textExpansionMode).toBe('auto');
+    expect(DEFAULT_SETTINGS.textExpansionInEditor).toBe(true);
+    const { rules, invalid } = parseRuleLines(DEFAULT_SETTINGS.textExpansionRules ?? '');
+    expect(invalid).toEqual([]);
+    expect(rules.length).toBeGreaterThan(0);
+  });
+
   it('SettingsTab has display method (stub check)', async () => {
     // Full settings tab test requires Obsidian environment — manual only.
     // This stub verifies the class is importable and has the display method.
@@ -52,6 +62,8 @@ function makePlugin(settings: Partial<RadiProtocolSettings> = {}) {
       this.rebuildLibraryServicesCalls += 1;
       this.lifecycle.push('rebuild');
     },
+    // Text expansion settings push a parsed snapshot; nothing to assert here.
+    applyTextExpansionSettings() {},
     i18n: {
       t: (key: string, _params?: Record<string, string>, fallback?: string) => fallback ?? key,
       setLocale: () => {},
@@ -103,7 +115,8 @@ describe('Settings sidebar runner toggle', () => {
     (useSidebarRunner) => {
       const { toggleComponents } = renderSettings({ useSidebarRunner });
 
-      expect(toggleComponents).toHaveLength(2);
+      // sidebar, conclusion draft, text expansion, expansion-in-editor
+      expect(toggleComponents).toHaveLength(4);
       expect(toggleComponents[0]!.value).toBe(useSidebarRunner);
     },
   );
@@ -127,7 +140,7 @@ describe('Settings runner conclusion draft toggle', () => {
     (enableRunnerDraft) => {
       const { toggleComponents } = renderSettings({ enableRunnerDraft });
 
-      expect(toggleComponents).toHaveLength(2);
+      expect(toggleComponents).toHaveLength(4);
       expect(toggleComponents[1]!.value).toBe(enableRunnerDraft !== false);
     },
   );
@@ -155,11 +168,13 @@ describe('Settings folder autocomplete (SETTINGS-01)', () => {
   it('attaches folder suggesters to Protocol and Snippet fields only', () => {
     const { textComponents, suggesters } = renderSettings();
 
-    expect(textComponents).toHaveLength(3);
+    // protocol folder, snippet folder, library URL, and the expansion rules textarea
+    expect(textComponents).toHaveLength(4);
     expect(suggesters).toHaveLength(2);
+    // [0] is the expansion rules textarea; folder fields follow it.
     expect(suggesters.map((suggester: { textInputEl: unknown }) => suggester.textInputEl)).toEqual([
-      textComponents[0]!.inputEl,
       textComponents[1]!.inputEl,
+      textComponents[2]!.inputEl,
     ]);
   });
 
@@ -168,7 +183,7 @@ describe('Settings folder autocomplete (SETTINGS-01)', () => {
       protocolFolderPath: 'Old Protocols',
       snippetFolderPath: 'Old Snippets',
     });
-    const [protocolText, snippetText] = textComponents;
+    const [, protocolText, snippetText] = textComponents;
 
     protocolText!.inputEl.value = ' /Protocols\\CT/ ';
     protocolText!.inputEl.dispatchEvent({ type: 'input', bubbles: true });

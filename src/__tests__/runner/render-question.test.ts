@@ -337,8 +337,10 @@ describe('shared question branch renderer', () => {
     const submit = findByClass(actionZone, 'rp-free-text-answer-submit')[0]!;
     textarea.value = 'submitted';
 
-    expect(textarea._listeners.get('input')).toHaveLength(1);
-    expect(textarea._listeners.get('keydown')).toHaveLength(1);
+    // Two input listeners: the draft sync plus the text-expansion adapter.
+    // Two keydown listeners: the submit alias plus the expansion delimiter.
+    expect(textarea._listeners.get('input')).toHaveLength(2);
+    expect(textarea._listeners.get('keydown')).toHaveLength(2);
     expect(submit._listeners.get('click')).toHaveLength(1);
     expect(submit._text).toBe('Submit');
 

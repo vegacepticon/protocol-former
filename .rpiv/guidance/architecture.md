@@ -8,6 +8,7 @@ RadiProtocol is a TypeScript Obsidian plugin for authoring and running structure
 - `src/graph/`, `src/protocol/`, `src/runner/` — graph kernel, `.rp.json` boundary, and pure execution state machine.
 - `src/snippets/`, `src/library/` — Markdown snippets/reference sync and community-library transactions.
 - `src/views/`, `src/runner/render/` — Obsidian UI/orchestration and runner DOM adapters.
+- `src/expansion/` — typed trigger → replacement for plugin text fields and the note editor; see its child guidance.
 - `src/i18n/`, `src/utils/`, `src/constants/`, `src/styles/` — cross-cutting capabilities/assets.
 - `src/__tests__/` — centralized tests; see its child guidance for shared, fixture, runner, and view rules.
 - `scripts/`, `.github/workflows/`, `.githooks/` — repository checks, CI/release, and optional local hooks.
@@ -54,7 +55,8 @@ The plugin is a radiology documentation aid, not a diagnostic or decision-author
 4. Add DOM projection in `.rpiv/guidance/src/runner/render/architecture.md`.
 5. Add host/editor/UI orchestration in `.rpiv/guidance/src/views/architecture.md`.
 6. Follow `.rpiv/guidance/src/snippets/architecture.md` or `src/library/architecture.md` for those bounded contexts.
-7. Route tests through `.rpiv/guidance/src/__tests__/architecture.md` and its specialized children; add both locale keys and feature CSS where needed.
+7. Cross-cutting text behavior belongs in `.rpiv/guidance/src/expansion/architecture.md`; do not duplicate key or expansion handlers in shells.
+8. Route tests through `.rpiv/guidance/src/__tests__/architecture.md` and its specialized children; add both locale keys and feature CSS where needed.
 </important>
 
 <important if="you are writing or modifying i18n strings">

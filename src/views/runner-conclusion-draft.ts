@@ -1,5 +1,6 @@
 import type { Translator } from '../i18n';
 import { createButton, createTextarea, growAutoTextarea } from '../utils/dom-helpers';
+import { attachTextExpansion } from '../expansion/textarea';
 
 interface DraftLine { text: string }
 const DRAG_TYPE = 'application/x-radiprotocol-conclusion-line';
@@ -47,6 +48,7 @@ export class RunnerConclusionDraft {
       cls: 'rp-runner-draft-input', placeholder: t('runnerDraft.inputPlaceholder'),
       attr: { rows: '1' },
     });
+    attachTextExpansion(this.input);
     this.labelControl(this.root, this.input, 'runnerDraft.inputLabel');
     this.input.addEventListener('input', () => {
       growDraftTextarea(this.input);
@@ -205,6 +207,7 @@ export class RunnerConclusionDraft {
         this.move(dragged, this.lines.indexOf(line));
       });
       const editor = createTextarea(row, { cls: 'rp-runner-draft-line', attr: { rows: '1' } });
+      attachTextExpansion(editor);
       this.labelControl(row, editor, 'runnerDraft.editLine');
       editor.value = line.text;
       editor.addEventListener('input', () => {

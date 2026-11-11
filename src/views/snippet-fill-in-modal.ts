@@ -7,6 +7,7 @@ import type { Translator } from '../i18n';
 import { defaultT } from '../i18n';
 import { createTextarea, growAutoTextarea } from '../utils/dom-helpers';
 import { isConfirmChord } from '../runner/keymap';
+import { attachTextExpansion } from '../expansion/textarea';
 
 // Phase 2 (JSON-removal): the fill-in modal accepts Markdown template snippets
 // only and renders exclusively via renderMdTemplateSnippet.
@@ -182,6 +183,7 @@ export class SnippetFillInModal extends Modal {
       attr: { rows: 1 },
     });
     if (this.firstFieldEl === null) this.firstFieldEl = textarea;
+    attachTextExpansion(textarea);
 
     textarea.addEventListener('input', () => {
       this.values[placeholder.id] = textarea.value;
@@ -301,6 +303,7 @@ export class SnippetFillInModal extends Modal {
       // Same compact auto-growing behavior as free-text placeholder fields.
       attr: { rows: 1, id: customInputId },
     });
+    attachTextExpansion(customInput);
 
     const setCustomOpen = (open: boolean): void => {
       customToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
