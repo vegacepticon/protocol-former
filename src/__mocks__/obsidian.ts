@@ -189,23 +189,39 @@ interface MockInputEl {
   rows?: number;
   classList: Set<string>;
   addClass: (cls: string) => void;
+  removeClass: (cls: string) => void;
+  toggleClass: (cls: string, force?: boolean) => void;
+  setAttribute: (name: string, value: string) => void;
+  getAttribute: (name: string) => string | null;
   addEventListener: (type: string, cb: (evt: MockInputEvent) => void) => void;
   dispatchEvent: (evt: MockInputEvent) => boolean;
 }
 
 const mockTextComponents: MockTextComponent[] = [];
 const mockToggleComponents: MockToggle[] = [];
+const mockButtonComponents: MockButton[] = [];
+const mockExtraButtonComponents: MockExtraButton[] = [];
 const mockAbstractInputSuggestInstances: AbstractInputSuggest<unknown>[] = [];
 
 function makeMockInputEl(): MockInputEl {
   const listeners = new Map<string, Array<(evt: MockInputEvent) => void>>();
   const classes = new Set<string>();
+  const attrs = new Map<string, string>();
   return {
     type: '',
     min: '',
     value: '',
     classList: classes,
     addClass: (cls: string) => { classes.add(cls); },
+    removeClass: (cls: string) => { classes.delete(cls); },
+    toggleClass: (cls: string, force?: boolean) => {
+      if (force === true) classes.add(cls);
+      else if (force === false) classes.delete(cls);
+      else if (classes.has(cls)) classes.delete(cls);
+      else classes.add(cls);
+    },
+    setAttribute: (name: string, value: string) => { attrs.set(name, value); },
+    getAttribute: (name: string) => attrs.get(name) ?? null,
     addEventListener: (type: string, cb: (evt: MockInputEvent) => void) => {
       const existing = listeners.get(type) ?? [];
       existing.push(cb);
@@ -249,6 +265,8 @@ interface MockTextComponent {
 export function __resetObsidianMocks(): void {
   mockTextComponents.length = 0;
   mockToggleComponents.length = 0;
+  mockButtonComponents.length = 0;
+  mockExtraButtonComponents.length = 0;
   mockAbstractInputSuggestInstances.length = 0;
 }
 
@@ -258,6 +276,14 @@ export function __getMockTextComponents(): MockTextComponent[] {
 
 export function __getMockToggleComponents(): MockToggle[] {
   return mockToggleComponents;
+}
+
+export function __getMockButtonComponents(): MockButton[] {
+  return mockButtonComponents;
+}
+
+export function __getMockExtraButtonComponents(): MockExtraButton[] {
+  return mockExtraButtonComponents;
 }
 
 export function __getMockAbstractInputSuggestInstances(): AbstractInputSuggest<unknown>[] {
@@ -334,29 +360,45 @@ function makeMockToggle(): MockToggle {
 /** Mock ButtonComponent — supports setCta and onClick chaining */
 function makeMockButton(): MockButton {
   const btn: MockButton = {
-    setButtonText: (_text: string) => btn,
+    text: '',
+    icon: '',
+    click: null,
+    setButtonText: (text: string) => { btn.text = text; return btn; },
+    setIcon: (iconId: string) => { btn.icon = iconId; return btn; },
     setCta: () => btn,
-    onClick: (_cb: () => void) => btn,
+    onClick: (cb: () => void) => { btn.click = cb; return btn; },
   };
+  mockButtonComponents.push(btn);
   return btn;
 }
 
-interface MockButton {
+export interface MockButton {
+  text: string;
+  icon: string;
+  click: (() => void) | null;
   setButtonText: (text: string) => MockButton;
+  setIcon: (iconId: string) => MockButton;
   setCta: () => MockButton;
   onClick: (cb: () => void) => MockButton;
 }
 
 function makeMockExtraButton(): MockExtraButton {
   const btn: MockExtraButton = {
-    setIcon: (_iconId: string) => btn,
-    setTooltip: (_tooltip: string) => btn,
-    onClick: (_cb: () => void) => btn,
+    icon: '',
+    tooltip: '',
+    click: null,
+    setIcon: (iconId: string) => { btn.icon = iconId; return btn; },
+    setTooltip: (tooltip: string) => { btn.tooltip = tooltip; return btn; },
+    onClick: (cb: () => void) => { btn.click = cb; return btn; },
   };
+  mockExtraButtonComponents.push(btn);
   return btn;
 }
 
-interface MockExtraButton {
+export interface MockExtraButton {
+  icon: string;
+  tooltip: string;
+  click: (() => void) | null;
   setIcon: (iconId: string) => MockExtraButton;
   setTooltip: (tooltip: string) => MockExtraButton;
   onClick: (cb: () => void) => MockExtraButton;
@@ -477,6 +519,7 @@ export class PluginSettingTab {
     this.containerEl = makeMockEl();
   }
   display(): void {}
+  hide(): void {}
 }
 
 export class Plugin {
@@ -544,11 +587,16 @@ export class Notice {
 }
 
 export class Setting {
+  settingEl: MockElement = makeMockEl();
+  infoEl: MockElement = makeMockEl();
+  nameEl: MockElement = makeMockEl();
+  descEl: MockElement = makeMockEl();
+  controlEl: MockElement = makeMockEl();
   constructor(_containerEl: unknown) {}
   setName(_name: string): this { return this; }
   setDesc(_desc: string): this { return this; }
+  setClass(_cls: string): this { return this; }
   setHeading(): this { return this; }
-  descEl: MockElement = makeMockEl();
   addText(_cb: (text: MockTextComponent) => void): this {
     _cb(makeMockTextComponent());
     return this;

@@ -1,19 +1,18 @@
 // expansion/engine.ts
 // Pure matching logic for text expansion.
 //
-// Two modes, mirroring the two plugins RadiProtocol replaces:
-//   * auto      — replace as soon as the typed text ends with a trigger
-//                 (Substitutions behaviour: `-->` becomes `→` immediately).
-//   * delimiter — replace a whole word when it is followed by Space
-//                 (Text Snippets behaviour: type `;sig`, press Space).
+// Two firing paths share this core:
+//   * auto   — replace as soon as the typed text ends with a trigger
+//              (Substitutions behaviour: `-->` becomes `→` immediately).
+//   * hotkey — replace the whole word before the caret when the user runs the
+//              `Insert phrase from trigger` command (Text Snippets shortcut
+//              behaviour with one user-assigned chord).
 //
 // Everything here takes plain strings and returns a coordinate-free plan, so
-// the textarea adapter and the CodeMirror extension share one implementation
-// and the behaviour is testable without a DOM.
+// the textarea adapter, the CodeMirror extension, and the hotkey command share
+// one implementation and the behaviour is testable without a DOM.
 
 import { resolveExpansion, type ExpansionRule } from './rules';
-
-export type ExpansionMode = 'auto' | 'delimiter';
 
 interface ExpansionMatch {
   rule: ExpansionRule;
@@ -64,7 +63,7 @@ export function maxTriggerLength(rules: ExpansionRule[]): number {
   return rules.reduce((longest, rule) => Math.max(longest, rule.trigger.length), 0);
 }
 
-/** Delimiter mode: the word must equal a trigger exactly. */
+/** Hotkey mode: the word before the caret must equal a trigger exactly. */
 export function matchWord(word: string, rules: ExpansionRule[]): ExpansionMatch | null {
   const rule = rules.find((candidate) => candidate.trigger === word);
   return rule === undefined ? null : toMatch(rule);
@@ -109,7 +108,7 @@ export function planAutoInsert(
   return { from: start, to: from + insert.length, insert: match.text, caret: start + match.caret };
 }
 
-/** Delimiter-mode plan: the word before `caret` is replaced, the delimiter is not inserted. */
+/** Hotkey-mode plan: the word before `caret` is replaced. */
 export function planWordExpansion(
   before: string,
   caret: number,

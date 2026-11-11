@@ -1,11 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetTextExpansionConfig, setTextExpansionConfig } from '../../expansion/config';
-import { attachTextExpansion } from '../../expansion/textarea';
+import {
+  attachTextExpansion,
+  expandHotkeyPhrase,
+  isTextExpansionTextarea,
+} from '../../expansion/textarea';
 import type { ExpansionRule } from '../../expansion/rules';
 
-const RULES: ExpansionRule[] = [
-  { trigger: '-->', replacement: '→' },
-  { trigger: ';sig', replacement: 'Roman$nl$Dev$end$' },
+const AUTO_RULES: ExpansionRule[] = [
+  { trigger: '-->', replacement: '→', mode: 'auto' },
+  { trigger: ';sig', replacement: 'Roman$nl$Dev$end$', mode: 'auto' },
+];
+
+const HOTKEY_RULES: ExpansionRule[] = [
+  { trigger: ';plan', replacement: 'Plan$nl$findings', mode: 'hotkey' },
+  { trigger: '-->', replacement: '→', mode: 'hotkey' },
 ];
 
 /**
@@ -54,33 +63,14 @@ class FakeTextarea {
       isComposing: options.isComposing ?? false,
     } as unknown as { type: string });
   }
-
-  /** Simulates a Space press: the delimiter is consumed only when handled. */
-  pressSpace(): { prevented: boolean } {
-    let prevented = false;
-    this.dispatchEvent({
-      type: 'keydown',
-      key: ' ',
-      ctrlKey: false,
-      metaKey: false,
-      altKey: false,
-      isComposing: false,
-      preventDefault: () => { prevented = true; },
-    } as unknown as { type: string });
-
-    if (!prevented) {
-      const start = this.selectionStart ?? 0;
-      this.value = this.value.slice(0, start) + ' ' + this.value.slice(start);
-      this.selectionStart = start + 1;
-      this.selectionEnd = this.selectionStart;
-      this.dispatchEvent({ type: 'input', inputType: 'insertText' } as unknown as { type: string });
-    }
-    return { prevented };
-  }
 }
 
 function attach(textarea: FakeTextarea): () => void {
   return attachTextExpansion(textarea as unknown as HTMLTextAreaElement);
+}
+
+function expand(textarea: FakeTextarea, rules: ExpansionRule[] = HOTKEY_RULES): boolean {
+  return expandHotkeyPhrase(textarea as unknown as HTMLTextAreaElement, rules);
 }
 
 beforeEach(() => {
@@ -93,7 +83,7 @@ afterEach(() => {
 
 describe('textarea expansion — auto mode', () => {
   beforeEach(() => {
-    setTextExpansionConfig({ enabled: true, mode: 'auto', rules: RULES });
+    setTextExpansionConfig({ enabled: true, autoRules: AUTO_RULES });
   });
 
   it('replaces as soon as the trigger is typed and keeps the value in place', () => {
@@ -145,7 +135,7 @@ describe('textarea expansion — auto mode', () => {
   });
 
   it('never re-expands its own replacement (no feedback loop)', () => {
-    setTextExpansionConfig({ enabled: true, mode: 'auto', rules: [{ trigger: 'x', replacement: 'xx' }] });
+    setTextExpansionConfig({ enabled: true, autoRules: [{ trigger: 'x', replacement: 'xx', mode: 'auto' }] });
     const textarea = new FakeTextarea();
     attach(textarea);
     textarea.type('x');
@@ -153,75 +143,100 @@ describe('textarea expansion — auto mode', () => {
   });
 
   it('stays inert when the feature is disabled', () => {
-    setTextExpansionConfig({ enabled: false, mode: 'auto', rules: RULES });
+    setTextExpansionConfig({ enabled: false, autoRules: AUTO_RULES });
     const textarea = new FakeTextarea();
     attach(textarea);
     textarea.type('-->');
     expect(textarea.value).toBe('-->');
   });
 
-  it('does nothing on Space in auto mode', () => {
+  it('does not expand hotkey phrases while typing', () => {
+    setTextExpansionConfig({ enabled: true, autoRules: [], hotkeyRules: HOTKEY_RULES });
     const textarea = new FakeTextarea();
     attach(textarea);
-    textarea.type(';sig2');
-    const { prevented } = textarea.pressSpace();
-    expect(prevented).toBe(false);
-    expect(textarea.value).toBe(';sig2 ');
+    textarea.type('-->');
+    expect(textarea.value).toBe('-->');
   });
 });
 
-describe('textarea expansion — delimiter mode', () => {
+describe('textarea expansion — hotkey insertion', () => {
   beforeEach(() => {
-    setTextExpansionConfig({ enabled: true, mode: 'delimiter', rules: RULES });
+    setTextExpansionConfig({ enabled: true, autoRules: AUTO_RULES });
   });
 
-  it('expands a whole word on Space and consumes the delimiter', () => {
+  it('replaces the word before the caret and resolves markers', () => {
     const textarea = new FakeTextarea();
     attach(textarea);
-    textarea.type(';sig');
-    const { prevented } = textarea.pressSpace();
+    textarea.type(';plan');
 
-    expect(prevented).toBe(true);
-    expect(textarea.value).toBe('Roman\nDev');
-    expect(textarea.selectionStart).toBe(9);
+    expect(expand(textarea)).toBe(true);
+    expect(textarea.value).toBe('Plan\nfindings');
+    expect(textarea.selectionStart).toBe(13);
   });
 
-  it('leaves an unknown word and the space untouched', () => {
+  it('replaces only the word at the caret', () => {
     const textarea = new FakeTextarea();
     attach(textarea);
-    textarea.type('hello');
-    const { prevented } = textarea.pressSpace();
+    textarea.type('first ;plan');
 
-    expect(prevented).toBe(false);
-    expect(textarea.value).toBe('hello ');
+    expect(expand(textarea)).toBe(true);
+    expect(textarea.value).toBe('first Plan\nfindings');
   });
 
-  it('expands after a newline and after other words', () => {
+  it('leaves an unknown word untouched', () => {
     const textarea = new FakeTextarea();
     attach(textarea);
-    textarea.type('first line');
-    textarea.type('\n');
-    textarea.type(';sig');
-    textarea.pressSpace();
+    textarea.type('unknown');
 
-    expect(textarea.value).toBe('first line\nRoman\nDev');
+    expect(expand(textarea)).toBe(false);
+    expect(textarea.value).toBe('unknown');
   });
 
-  it('stays inert when the feature is disabled', () => {
-    setTextExpansionConfig({ enabled: false, mode: 'delimiter', rules: RULES });
+  it('does nothing when the caret is inside a selection', () => {
     const textarea = new FakeTextarea();
     attach(textarea);
-    textarea.type(';sig');
-    const { prevented } = textarea.pressSpace();
+    textarea.type(';plan');
+    textarea.setSelectionRange(1, 4);
 
-    expect(prevented).toBe(false);
-    expect(textarea.value).toBe(';sig ');
+    expect(expand(textarea)).toBe(false);
+    expect(textarea.value).toBe(';plan');
+  });
+
+  it('does not re-run auto expansion on its own synthetic input', () => {
+    // The hotkey replacement ends with a trigger that auto mode would match.
+    setTextExpansionConfig({ enabled: true, autoRules: AUTO_RULES });
+    const textarea = new FakeTextarea();
+    attach(textarea);
+    textarea.type(';arrow');
+
+    expect(expand(textarea, [{ trigger: ';arrow', replacement: '-->', mode: 'hotkey' }])).toBe(true);
+    expect(textarea.value).toBe('-->');
+  });
+
+  it('does not fire with an empty rule list', () => {
+    const textarea = new FakeTextarea();
+    attach(textarea);
+    textarea.type(';plan');
+    expect(expand(textarea, [])).toBe(false);
+    expect(textarea.value).toBe(';plan');
   });
 });
 
-describe('textarea expansion — detach', () => {
-  it('removes both listeners', () => {
-    setTextExpansionConfig({ enabled: true, mode: 'auto', rules: RULES });
+describe('textarea expansion — attach ownership', () => {
+  it('marks an attached field and forgets it on detach', () => {
+    const textarea = new FakeTextarea();
+    const el = textarea as unknown as HTMLTextAreaElement;
+    expect(isTextExpansionTextarea(el)).toBe(false);
+
+    const detach = attach(textarea);
+    expect(isTextExpansionTextarea(el)).toBe(true);
+
+    detach();
+    expect(isTextExpansionTextarea(el)).toBe(false);
+  });
+
+  it('removes the input listener on detach', () => {
+    setTextExpansionConfig({ enabled: true, autoRules: AUTO_RULES });
     const textarea = new FakeTextarea();
     const detach = attach(textarea);
     detach();

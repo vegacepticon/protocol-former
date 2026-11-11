@@ -8,6 +8,11 @@
 // synthetic `input` event so the surrounding component (draft state, live
 // preview) updates exactly as if the user had typed the replacement.
 //
+// Two entry points:
+//   * `attachTextExpansion()` reacts to direct typing (auto phrases);
+//   * `expandHotkeyPhrase()` is called by the `Insert phrase from trigger`
+//     command for a field this adapter owns.
+//
 // Known trade-off: assigning `value` bypasses the browser's native undo stack,
 // so one Ctrl+Z does not restore the pre-expansion text in these fields. The
 // notes editor is unaffected because it goes through CodeMirror transactions.
@@ -19,8 +24,14 @@ import {
   planWordExpansion,
   type ExpansionChange,
 } from './engine';
+import type { ExpansionRule } from './rules';
 
 const INSERT_TEXT = 'insertText';
+
+/** Fields this adapter owns; the command refuses to touch anything else. */
+const attachedTextareas = new WeakSet<HTMLTextAreaElement>();
+/** Guards the synthetic `input` event from being treated as a fresh keystroke. */
+const applyingTextareas = new WeakSet<HTMLTextAreaElement>();
 
 function caretOf(textarea: HTMLTextAreaElement): number | null {
   const start = textarea.selectionStart;
@@ -31,14 +42,47 @@ function caretOf(textarea: HTMLTextAreaElement): number | null {
 }
 
 function applyChange(textarea: HTMLTextAreaElement, change: ExpansionChange): void {
-  const value = textarea.value;
-  textarea.value = value.slice(0, change.from) + change.insert + value.slice(change.to);
-  if (typeof textarea.setSelectionRange === 'function') {
-    textarea.setSelectionRange(change.caret, change.caret);
+  applyingTextareas.add(textarea);
+  try {
+    const value = textarea.value;
+    textarea.value = value.slice(0, change.from) + change.insert + value.slice(change.to);
+    if (typeof textarea.setSelectionRange === 'function') {
+      textarea.setSelectionRange(change.caret, change.caret);
+    }
+    // Let the component that owns this field observe the new value through its
+    // normal `input` handler instead of duplicating its state update here.
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  } finally {
+    applyingTextareas.delete(textarea);
   }
-  // Let the component that owns this field observe the new value through its
-  // normal `input` handler instead of duplicating its state update here.
-  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/** True for fields that `attachTextExpansion()` wired. */
+export function isTextExpansionTextarea(
+  element: Element | null | undefined,
+): element is HTMLTextAreaElement {
+  return element !== null
+    && element !== undefined
+    && attachedTextareas.has(element as HTMLTextAreaElement);
+}
+
+/**
+ * Replaces the word before the caret with a hotkey-mode phrase.
+ * Returns true when a replacement was applied. The command owns the
+ * "nothing matched" feedback.
+ */
+export function expandHotkeyPhrase(
+  textarea: HTMLTextAreaElement,
+  rules: ExpansionRule[],
+): boolean {
+  if (rules.length === 0) return false;
+  const caret = caretOf(textarea);
+  if (caret === null) return false;
+
+  const change = planWordExpansion(textarea.value.slice(0, caret), caret, rules);
+  if (change === null) return false;
+  applyChange(textarea, change);
+  return true;
 }
 
 /**
@@ -47,14 +91,10 @@ function applyChange(textarea: HTMLTextAreaElement, change: ExpansionChange): vo
  * listeners.
  */
 export function attachTextExpansion(textarea: HTMLTextAreaElement): () => void {
-  // Guards the synthetic `input` event dispatched by applyChange from being
-  // treated as a fresh keystroke (which would expand again).
-  let applying = false;
-
   const onInput = (event: Event): void => {
-    if (applying) return;
+    if (applyingTextareas.has(textarea)) return;
     const config = getTextExpansionConfig();
-    if (!config.enabled || config.mode !== 'auto' || config.rules.length === 0) return;
+    if (!config.enabled || config.autoRules.length === 0) return;
 
     const inputEvent = event as InputEvent;
     if (inputEvent.isComposing === true) return;
@@ -68,47 +108,19 @@ export function attachTextExpansion(textarea: HTMLTextAreaElement): () => void {
 
     // Only the last `longest` characters can match, so long answers are not
     // copied on every keystroke.
-    const longest = maxTriggerLength(config.rules);
+    const longest = maxTriggerLength(config.autoRules);
     const before = textarea.value.slice(Math.max(0, caret - longest), caret);
-    const change = planAutoExpansion(before, caret, config.rules);
+    const change = planAutoExpansion(before, caret, config.autoRules);
     if (change === null) return;
 
-    applying = true;
-    try {
-      applyChange(textarea, change);
-    } finally {
-      applying = false;
-    }
+    applyChange(textarea, change);
   };
 
-  const onKeydown = (event: KeyboardEvent): void => {
-    const config = getTextExpansionConfig();
-    if (!config.enabled || config.mode !== 'delimiter' || config.rules.length === 0) return;
-    if (event.key !== ' ' || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.isComposing === true) return;
-
-    const caret = caretOf(textarea);
-    if (caret === null) return;
-
-    const change = planWordExpansion(textarea.value.slice(0, caret), caret, config.rules);
-    if (change === null) return;
-
-    // The delimiter is consumed: the expansion replaces the trigger and the
-    // space is not inserted, matching Text Snippets.
-    event.preventDefault();
-    applying = true;
-    try {
-      applyChange(textarea, change);
-    } finally {
-      applying = false;
-    }
-  };
-
+  attachedTextareas.add(textarea);
   textarea.addEventListener('input', onInput);
-  textarea.addEventListener('keydown', onKeydown);
 
   return () => {
+    attachedTextareas.delete(textarea);
     textarea.removeEventListener('input', onInput);
-    textarea.removeEventListener('keydown', onKeydown);
   };
 }

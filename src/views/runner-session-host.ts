@@ -58,6 +58,8 @@ export interface RunnerSessionHostOptions {
   isRunnerDraftEnabled?(): boolean;
   /** Floating shells take focus on open; the sidebar leaf already owns it. */
   autoFocusOnMount?: boolean;
+  /** Initial hint-row visibility for this session. Absent = visible. */
+  keyHintsVisibleByDefault?: boolean;
   withTargetNoteLock(path: string, operation: () => Promise<void>): Promise<void>;
   t: Translator;
   notify(message: string): void;
@@ -95,7 +97,7 @@ export class RunnerSessionHost {
   private footerBtnRowEl: HTMLElement | null = null;
   /** Options rendered by the current state, in numeric-dispatch order. */
   private renderedOptions: RunnerOptionTarget[] = [];
-  /** Session-scoped hint-row visibility (H). Presentation state, not a setting. */
+  /** Session-scoped hint-row visibility (H); seeded from settings when the session opens. */
   private hintsVisible = true;
   private hintsEl: HTMLElement | null = null;
   /** Requests root focus after the next render (open, keyboard action, click). */
@@ -123,6 +125,7 @@ export class RunnerSessionHost {
 
   constructor(options: RunnerSessionHostOptions) {
     this.options = options;
+    this.hintsVisible = options.keyHintsVisibleByDefault !== false;
     this.runner = new ProtocolRunner({
       defaultSeparator: options.getTextSeparator(),
       t: options.t,

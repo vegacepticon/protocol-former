@@ -598,3 +598,48 @@
 .rp-runner-session-root:focus {
   outline: none;
 }
+
+/* Settings cheat sheet, opened next to the hint-row visibility toggle. */
+.rp-runner-keys-reference {
+  margin: calc(var(--size-4-1) * -1) 0 var(--size-4-3);
+  padding: var(--size-2-3) var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+
+.rp-runner-keys-summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.rp-runner-keys-table {
+  width: 100%;
+  margin-top: var(--size-4-1);
+  border-collapse: collapse;
+  font-size: var(--font-ui-smaller);
+}
+
+.rp-runner-keys-table td {
+  padding: var(--size-2-1) var(--size-2-2);
+  border-top: 1px solid var(--background-modifier-border);
+  vertical-align: top;
+}
+
+.rp-runner-keys-key {
+  width: 12em;
+  white-space: nowrap;
+}
+
+.rp-runner-keys-key kbd {
+  padding: 0 var(--size-2-1);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  font-family: var(--font-monospace);
+}
+
+.rp-runner-keys-action {
+  color: var(--text-normal);
+}

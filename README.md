@@ -62,6 +62,7 @@ RadiProtocol adds the following commands. No command has a default global hotkey
 | **Start from specific node** | Choose a protocol and a start node, then start a session from that node. Useful for testing one branch. Requires an active Markdown note. |
 | **Open protocol editor** | Choose or create a `.rp.json` file and open the visual editor. |
 | **Insert snippet** | Pick a snippet and insert it at the cursor of the active Markdown note, or append it when no editor is available. |
+| **Insert phrase from trigger** | Replace the word before the cursor with a hotkey-mode insertion phrase. Assign a hotkey in Settings → Hotkeys; auto-replacement phrases do not need this command. |
 | **Create snippet from selection** | Create a new snippet using the current editor selection as the initial template. |
 | **Open snippet manager** | Open the snippet manager view. |
 | **Open community library** | Open the community library view. |
@@ -95,7 +96,7 @@ The runner takes focus when it opens and returns focus to itself after each acti
 | `Tab` / `Shift+Tab` | Move focus forward or backward. |
 | `j` / `k` / `Tab` / `Shift+Tab` | Move through snippet picker results when the result list has focus. `Tab` from the last row and `Shift+Tab` from the first row leave the list for the next control (the first row hands focus back to the search field). |
 
-Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is session state: it is not saved in settings.
+Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is shown by default: turn it off in **Settings → RadiProtocol → Show keyboard hints in the runner**, and open the full shortcut reference from the same place. `H` still toggles the row for the current session.
 
 Inside the snippet fill-in modal the caret starts in the first placeholder, so no `Tab` is needed to begin typing. A choice field is a single `Tab` stop: the arrow keys move between its options and the `✎` Custom toggle, `1`–`9` toggle the numbered option without leaving the group (each pill shows its number, and digits still type themselves inside a text field), and `Tab` leaves the group for the next field. `Ctrl+Space` confirms from anywhere in the modal; `Shift+Enter` keeps working as a legacy alias.
 
@@ -120,29 +121,21 @@ Drafts exist **only for the current run**. They are not saved in protocol files 
 
 ## Text expansion
 
-RadiProtocol can expand typed triggers into longer text, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
+RadiProtocol can insert longer text from a short trigger, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
 
-Enable it in **Settings → RadiProtocol → Text expansion**. Two modes:
+Enable it in **Settings → RadiProtocol → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The icon button switches the row between two modes:
 
-- **As you type (auto-replace)** — the trigger is replaced the moment it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
-- **On Space (snippets)** — type a whole word and press Space to replace it: `;sig` becomes your signature, and the space is consumed. This is the Text Snippets behaviour.
+- **Auto-replacement** — the trigger is replaced as soon as it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
+- **Hotkey insertion** — the typed word stays as it is until you run **Insert phrase from trigger** from the command palette or its hotkey. Type the trigger, press the chord, and the word is replaced. Assign the chord in **Settings → Hotkeys**; no default is set.
 
-Rules are one per line as `trigger => replacement` (`→` also works as the separator):
-
-```text
---> => →
-<-- => ←
-!= => ≠
-;sig => Best regards,$nl$Roman$end$
-```
-
-In a replacement, `\n`, `\t`, `\b` and `\\` are character escapes, `$nl$` inserts a line break, and `$end$` marks where the caret lands after expansion (default: the end). Lines starting with `#` are comments, and triggers cannot contain spaces. Lines that cannot be parsed are counted under the rules field and ignored.
+In a replacement, `\n`, `\t`, `\b` and `\\` are character escapes, `$nl$` inserts a line break, and `$end$` marks where the caret lands after expansion (default: the end). Triggers cannot contain spaces; a row with an empty or multi-word trigger is marked invalid and ignored.
 
 Notes and limits:
 
 - Expansion applies to direct typing only; pasted text is never rewritten.
+- Hotkey insertion touches only RadiProtocol's own fields and the note editor. It cannot rewrite a search box or another plugin's input, and it follows the **Expand in the note editor** toggle.
 - In plugin text fields the replacement bypasses the browser's native undo (one Ctrl+Z does not restore the trigger). The note editor keeps its normal undo history.
-- Tab is not a delimiter: it moves focus in modals and indents lists in the editor. Only Space expands snippets.
+- The 3.6.21 `trigger => replacement` list is migrated automatically: rows become auto-replacement phrases, except rows from the old **On Space** mode, which become hotkey phrases.
 - If another expansion plugin is still enabled, turn it off to avoid double expansion in the note editor.
 
 ## Self-check

@@ -170,6 +170,7 @@ export class SidebarRunnerView extends ItemView {
       getTextSeparator: () => this.plugin.settings.textSeparator,
       getSnippetFolderPath: () => this.plugin.settings.snippetFolderPath,
       isRunnerDraftEnabled: () => this.plugin.settings.enableRunnerDraft !== false,
+      keyHintsVisibleByDefault: this.plugin.settings.showRunnerKeyHints !== false,
       autoFocusOnMount: false,
       withTargetNoteLock: (path, operation) =>
         this.plugin['insertMutex'].runExclusive(path, operation),

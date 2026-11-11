@@ -230,7 +230,12 @@ function makeFile(path: string): TFile {
   return Object.assign(new TFile(), { path });
 }
 
-function harness(runtimeGraph: ProtocolGraph, rawDocument = '{}', enableDraft = false): Harness {
+function harness(
+  runtimeGraph: ProtocolGraph,
+  rawDocument = '{}',
+  enableDraft = false,
+  optionOverrides: Partial<RunnerSessionHostOptions> = {},
+): Harness {
   const plugin = makeBasePlugin();
   const app = makeBaseApp(plugin);
   const protocolFile = makeFile('Protocols/test.rp.json');
@@ -260,6 +265,7 @@ function harness(runtimeGraph: ProtocolGraph, rawDocument = '{}', enableDraft = 
     t: plugin.i18n.t.bind(plugin.i18n),
     notify,
     onRequestClose,
+    ...optionOverrides,
   };
   return {
     host: new RunnerSessionHost(options),
@@ -1514,6 +1520,17 @@ describe('RunnerSessionHost keyboard model', () => {
     expect(h.host.handleKeydown(keyboard({ code: 'KeyH', key: 'h' }).event)).toBe(true);
     expect(hints.hasClass('is-hidden')).toBe(true);
 
+    expect(h.host.handleKeydown(keyboard({ code: 'KeyH', key: 'h' }).event)).toBe(true);
+    expect(hints.hasClass('is-hidden')).toBe(false);
+    h.host.dispose();
+  });
+
+  it('starts with the hint row hidden when the setting is off, and H still reveals it', async () => {
+    const h = harness(twoOptionGraph(), '{}', false, { keyHintsVisibleByDefault: false });
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const hints = h.root.querySelector('.rp-runner-key-hints')!;
+
+    expect(hints.hasClass('is-hidden')).toBe(true);
     expect(h.host.handleKeydown(keyboard({ code: 'KeyH', key: 'h' }).event)).toBe(true);
     expect(hints.hasClass('is-hidden')).toBe(false);
     h.host.dispose();

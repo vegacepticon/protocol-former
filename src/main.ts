@@ -17,9 +17,11 @@ import type { InstalledRecord } from './library/library-model';
 import { WriteMutex } from './utils/write-mutex';
 import { I18nService } from './i18n';
 import { normalizeProtocolFolderPath, resolveProtocolDocumentFiles } from './protocol/protocol-file-resolver';
-import { setTextExpansionConfig } from './expansion/config';
-import { textExpansionExtension } from './expansion/editor';
-import { parseRuleLines } from './expansion/rules';
+import { getTextExpansionConfig, setTextExpansionConfig } from './expansion/config';
+import { expandHotkeyPhraseInEditor, textExpansionExtension } from './expansion/editor';
+import { isAutoRule, isHotkeyRule, normalizePhrases, phrasesFromLegacyRules, DEFAULT_TEXT_EXPANSION_PHRASES } from './expansion/rules';
+import { expandHotkeyPhrase, isTextExpansionTextarea } from './expansion/textarea';
+import { isTextEntryTarget } from './runner/keymap';
 // Phase 45 (LOOP-06): start-from-node command dependencies
 import { NodePickerModal, buildStartableProtocolNodeOptions } from './views/node-picker-modal';
 // Phase 54: inline protocol display mode
@@ -80,7 +82,9 @@ export default class RadiProtocolPlugin extends Plugin {
 
   async onload(): Promise<void> {
     // Load settings with defaults guard (NFR-08)
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const storedSettings = (await this.loadData()) ?? {};
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings);
+    const migratedExpansion = this.migrateTextExpansionPhrases(storedSettings);
 
     // Phase 84 (I18N-01): init i18n. Backward-compat: existing installs without locale key default to 'ru'.
     const loadedLocale = (this.settings as unknown as Record<string, unknown>).locale;
@@ -94,6 +98,7 @@ export default class RadiProtocolPlugin extends Plugin {
     // from saveSettings(). The editor extension reads it at event time.
     this.applyTextExpansionSettings();
     this.registerEditorExtension(textExpansionExtension());
+    if (migratedExpansion) await this.saveSettings();
 
     // Instantiate pure modules (no Obsidian dependency)
     // Phase 84 (I18N-02): inject the i18n translator so parse-time error messages follow the active locale.
@@ -218,6 +223,13 @@ export default class RadiProtocolPlugin extends Plugin {
       callback: () => { void this.handleInsertSnippet(); },
     });
 
+    // Hotkey-mode phrases: type the trigger, run this command with a user-assigned chord.
+    this.addCommand({
+      id: 'insert-phrase',
+      name: 'Insert phrase from trigger',
+      callback: () => { this.insertPhraseFromTrigger(); },
+    });
+
     this.addCommand({
       id: 'create-snippet',
       name: 'Create snippet from selection',
@@ -327,12 +339,94 @@ export default class RadiProtocolPlugin extends Plugin {
    * without restarting Obsidian or reconfiguring the editor extension.
    */
   applyTextExpansionSettings(): void {
+    const phrases = normalizePhrases(this.settings.textExpansionPhrases ?? []);
     setTextExpansionConfig({
       enabled: this.settings.textExpansionEnabled === true,
-      mode: this.settings.textExpansionMode === 'delimiter' ? 'delimiter' : 'auto',
       inEditor: this.settings.textExpansionInEditor !== false,
-      rules: parseRuleLines(this.settings.textExpansionRules ?? '').rules,
+      autoRules: phrases.filter(isAutoRule),
+      hotkeyRules: phrases.filter(isHotkeyRule),
     });
+  }
+
+  /**
+   * One-way upgrade from the 3.6.21 text format (`trigger => replacement`) to
+   * the structured phrase list. Returns true when the old keys were consumed.
+   * Invalid legacy lines are dropped; rows the user adds later are preserved
+   * verbatim so the settings page can flag them instead of deleting them.
+   */
+  private migrateTextExpansionPhrases(stored: Record<string, unknown>): boolean {
+    if (Array.isArray(stored['textExpansionPhrases'])) {
+      this.settings.textExpansionPhrases = (stored['textExpansionPhrases'] as Array<Record<string, unknown>>)
+        .map((phrase) => ({
+          trigger: typeof phrase['trigger'] === 'string' ? phrase['trigger'] : '',
+          replacement: typeof phrase['replacement'] === 'string' ? phrase['replacement'] : '',
+          mode: phrase['mode'] === 'hotkey' ? 'hotkey' : 'auto',
+        }));
+      return false;
+    }
+
+    const legacyRules = typeof stored['textExpansionRules'] === 'string'
+      ? stored['textExpansionRules']
+      : undefined;
+    const legacyMode = stored['textExpansionMode'] === 'delimiter'
+      ? 'delimiter'
+      : stored['textExpansionMode'] === 'auto'
+        ? 'auto'
+        : undefined;
+    this.settings.textExpansionPhrases = legacyRules === undefined
+      ? DEFAULT_TEXT_EXPANSION_PHRASES.map((phrase) => ({ ...phrase }))
+      : phrasesFromLegacyRules(legacyRules, legacyMode);
+    delete this.settings.textExpansionRules;
+    delete this.settings.textExpansionMode;
+    return legacyRules !== undefined || stored['textExpansionMode'] !== undefined;
+  }
+
+  /**
+   * `Insert phrase from trigger`: replaces the word before the caret with a
+   * hotkey-mode phrase. Only fields RadiProtocol wired for expansion are
+   * touched; any other text field is left alone so the command cannot rewrite
+   * a search box or another plugin's input.
+   */
+  private insertPhraseFromTrigger(): void {
+    const config = getTextExpansionConfig();
+    if (!config.enabled) {
+      new Notice(this.i18n.t('expansion.disabled'));
+      return;
+    }
+
+    const active = typeof document === 'undefined' ? null : document.activeElement;
+    if (isTextEntryTarget(active as HTMLElement | null)) {
+      if (active !== null && active !== undefined && isTextExpansionTextarea(active)) {
+        if (expandHotkeyPhrase(active, config.hotkeyRules)) return;
+      }
+      new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
+      return;
+    }
+
+    // Focus on a runner control (root, button, draft chrome) must not insert
+    // into the note behind the panel; only the editor or expando fields qualify.
+    const activeEl = active as HTMLElement | null;
+    if (activeEl !== null && typeof activeEl.closest === 'function'
+      && activeEl.closest('.rp-runner-session-root, .rp-snippet-fill-modal') !== null) {
+      new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
+      return;
+    }
+
+    const editor = this.app.workspace.activeEditor?.editor
+      ?? this.getActiveMarkdownView()?.editor
+      ?? null;
+    if (editor !== null) {
+      if (!config.inEditor) {
+        new Notice(this.i18n.t('expansion.editorDisabled'));
+        return;
+      }
+      if (expandHotkeyPhraseInEditor(editor, config.hotkeyRules)) return;
+    }
+    new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
+  }
+
+  private getActiveMarkdownView(): MarkdownView | null {
+    return this.app.workspace.getActiveViewOfType(MarkdownView);
   }
 
   getInlineRunnerPosition(): InlineRunnerLayout | null {

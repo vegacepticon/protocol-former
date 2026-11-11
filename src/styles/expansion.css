@@ -1,19 +1,72 @@
-/* Typed text expansion — settings tab rules editor. */
+/* Typed text expansion — nested phrase page. */
 
-.rp-expansion-rules {
-  width: 100%;
-  min-height: 9em;
-  font-family: var(--font-monospace);
-  font-size: var(--font-ui-smaller);
-  resize: vertical;
+/* Phrase list — nested settings page. */
+.rp-settings-back-row {
+  margin-bottom: var(--size-4-2);
 }
 
-.rp-expansion-rules-status {
-  margin: calc(var(--size-4-1) * -1) 0 var(--size-4-2);
+.rp-phrase-hint {
+  margin: 0 0 var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.rp-phrase-status {
+  margin: 0 0 var(--size-4-2);
   color: var(--text-error);
   font-size: var(--font-ui-smaller);
 }
 
-.rp-expansion-rules-status.is-hidden {
+.rp-phrase-status.is-hidden {
   display: none;
+}
+
+.rp-phrase-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1);
+  margin-bottom: var(--size-4-2);
+}
+
+.rp-phrase-row {
+  padding: var(--size-4-1) 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-phrase-row .setting-item-info {
+  display: none;
+}
+
+.rp-phrase-row .setting-item-control {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: var(--size-4-2);
+}
+
+.rp-phrase-trigger {
+  flex: 0 1 28%;
+  min-width: 7em;
+}
+
+.rp-phrase-replacement {
+  flex: 1 1 auto;
+  min-width: 10em;
+}
+
+.rp-phrase-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.rp-phrase-add-row {
+  margin-top: var(--size-4-2);
+}
+
+.rp-phrase-trigger-invalid {
+  border-color: var(--text-error);
+}
+
+.rp-phrase-disabled-hint {
+  color: var(--text-warning);
 }

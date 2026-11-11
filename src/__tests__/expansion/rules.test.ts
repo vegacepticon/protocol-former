@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_TEXT_EXPANSION_RULES,
+  countInvalidPhrases,
+  DEFAULT_TEXT_EXPANSION_PHRASES,
+  isValidTrigger,
+  normalizePhrases,
   parseRuleLines,
+  phrasesFromLegacyRules,
   resolveExpansion,
-  serializeRuleLines,
 } from '../../expansion/rules';
 
-describe('expansion rules — parsing', () => {
+describe('expansion rules — legacy line parsing (3.6.21 migration)', () => {
   it('parses one rule per line with => and → separators', () => {
     const { rules, invalid } = parseRuleLines([
       '--> => →',
@@ -16,9 +19,9 @@ describe('expansion rules — parsing', () => {
 
     expect(invalid).toEqual([]);
     expect(rules).toEqual([
-      { trigger: '-->', replacement: '→' },
-      { trigger: '<--', replacement: '←' },
-      { trigger: ';sig', replacement: 'Best regards' },
+      { trigger: '-->', replacement: '→', mode: 'auto' },
+      { trigger: '<--', replacement: '←', mode: 'auto' },
+      { trigger: ';sig', replacement: 'Best regards', mode: 'auto' },
     ]);
   });
 
@@ -36,7 +39,7 @@ describe('expansion rules — parsing', () => {
 
   it('keeps a separator that appears inside the replacement', () => {
     const { rules } = parseRuleLines(';arrow => a => b');
-    expect(rules).toEqual([{ trigger: ';arrow', replacement: 'a => b' }]);
+    expect(rules).toEqual([{ trigger: ';arrow', replacement: 'a => b', mode: 'auto' }]);
   });
 
   it('reports lines without a separator, with an empty trigger, or with spaces in the trigger', () => {
@@ -47,27 +50,57 @@ describe('expansion rules — parsing', () => {
       'ok => yes',
     ].join('\n'));
 
-    expect(rules).toEqual([{ trigger: 'ok', replacement: 'yes' }]);
+    expect(rules).toEqual([{ trigger: 'ok', replacement: 'yes', mode: 'auto' }]);
     expect(invalid).toEqual(['no separator here', '=> orphan', 'two words => nope']);
   });
 
   it('trims the line and the trigger, and drops separator padding', () => {
     const { rules } = parseRuleLines('   ;x   =>  value  ');
-    expect(rules).toEqual([{ trigger: ';x', replacement: 'value' }]);
+    expect(rules).toEqual([{ trigger: ';x', replacement: 'value', mode: 'auto' }]);
   });
 
-  it('serializes back to an editable list with one rule per line', () => {
-    const rules = [
+  it('maps the legacy global delimiter mode to hotkey phrases', () => {
+    const rules = phrasesFromLegacyRules(';sig => Best\n--> => →', 'delimiter');
+    expect(rules.map((rule) => rule.mode)).toEqual(['hotkey', 'hotkey']);
+  });
+
+  it('leaves absent legacy text alone', () => {
+    expect(phrasesFromLegacyRules(undefined, 'auto')).toEqual([]);
+  });
+});
+
+describe('expansion phrases — structured validation', () => {
+  it('accepts one-word triggers and rejects blank or multi-word ones', () => {
+    expect(isValidTrigger('-->')).toBe(true);
+    expect(isValidTrigger('  ;sig  ')).toBe(true);
+    expect(isValidTrigger('')).toBe(false);
+    expect(isValidTrigger('   ')).toBe(false);
+    expect(isValidTrigger('two words')).toBe(false);
+  });
+
+  it('normalizes modes and trims surrounding trigger whitespace', () => {
+    expect(normalizePhrases([
+      { trigger: '  ;sig  ', replacement: 'Best', mode: 'hotkey' },
       { trigger: '-->', replacement: '→' },
-      { trigger: ';sig', replacement: 'Best' },
-    ];
-    expect(serializeRuleLines(rules)).toBe('--> => →\n;sig => Best');
+    ])).toEqual([
+      { trigger: ';sig', replacement: 'Best', mode: 'hotkey' },
+      { trigger: '-->', replacement: '→', mode: 'auto' },
+    ]);
   });
 
-  it('ships defaults that parse cleanly', () => {
-    const { rules, invalid } = parseRuleLines(DEFAULT_TEXT_EXPANSION_RULES);
-    expect(invalid).toEqual([]);
-    expect(rules.length).toBeGreaterThan(0);
+  it('drops invalid rows from the runtime snapshot but keeps their count for the page', () => {
+    const phrases = [
+      { trigger: '', replacement: 'x' },
+      { trigger: 'two words', replacement: 'y' },
+      { trigger: 'ok', replacement: 'z' },
+    ];
+    expect(normalizePhrases(phrases)).toHaveLength(1);
+    expect(countInvalidPhrases(phrases)).toBe(2);
+  });
+
+  it('ships defaults that are valid', () => {
+    expect(DEFAULT_TEXT_EXPANSION_PHRASES.length).toBeGreaterThan(0);
+    expect(countInvalidPhrases(DEFAULT_TEXT_EXPANSION_PHRASES)).toBe(0);
   });
 });
 

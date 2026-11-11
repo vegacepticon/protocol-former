@@ -338,9 +338,10 @@ describe('shared question branch renderer', () => {
     textarea.value = 'submitted';
 
     // Two input listeners: the draft sync plus the text-expansion adapter.
-    // Two keydown listeners: the submit alias plus the expansion delimiter.
+    // One keydown listener: the legacy submit alias. Hotkey phrases are inserted
+    // by the plugin command, not by a listener on the field.
     expect(textarea._listeners.get('input')).toHaveLength(2);
-    expect(textarea._listeners.get('keydown')).toHaveLength(2);
+    expect(textarea._listeners.get('keydown')).toHaveLength(1);
     expect(submit._listeners.get('click')).toHaveLength(1);
     expect(submit._text).toBe('Submit');
 

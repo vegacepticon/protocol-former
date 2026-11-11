@@ -5,7 +5,12 @@ import type RadiProtocolPlugin from './main';
 import { FolderSuggest } from './views/folder-suggest';
 import { DONATE_WALLETS } from './donate/wallets';
 import { normalizeProtocolFolderPath } from './protocol/protocol-file-resolver';
-import { DEFAULT_TEXT_EXPANSION_RULES, parseRuleLines } from './expansion/rules';
+import {
+  countInvalidPhrases,
+  DEFAULT_TEXT_EXPANSION_PHRASES,
+  isValidTrigger,
+  type ExpansionRule,
+} from './expansion/rules';
 
 /** Phase 67 (D-05): renamed from InlineRunnerPosition; width/height optional for back-compat (D-06).
  *  Existing on-disk records have only {left, top}; missing width/height fall back to
@@ -32,6 +37,8 @@ export interface RadiProtocolSettings {
   useSidebarRunner?: boolean;
   /** Show the session-only conclusion scratchpad in the runner. Absent = enabled. */
   enableRunnerDraft?: boolean;
+  /** Start each runner session with the keyboard hint row visible. Absent = enabled. */
+  showRunnerKeyHints?: boolean;
   /** Phase 60 (D-01): Last dragged inline runner position; Phase 67 (D-05/D-06) extended with optional width/height. */
   inlineRunnerPosition?: InlineRunnerLayout | null;
   /** Phase 84 (I18N-01): UI language. Default 'en' for new installs; existing installs without this key default to 'ru' for backward compat. */
@@ -56,12 +63,14 @@ export interface RadiProtocolSettings {
   libraryLastExportFolder?: string;
   /** Typed text expansion (the Substitutions / Text Snippets replacement). Absent = off. */
   textExpansionEnabled?: boolean;
-  /** 'auto' replaces while typing; 'delimiter' expands a word on Space. Absent = 'auto'. */
-  textExpansionMode?: 'auto' | 'delimiter';
-  /** Raw rules, one per line: `trigger => replacement` (see expansion/rules.ts). */
-  textExpansionRules?: string;
+  /** Structured phrase list edited on its own settings page. */
+  textExpansionPhrases?: ExpansionRule[];
   /** Also expand inside the note editor. Absent = true. */
   textExpansionInEditor?: boolean;
+  /** @deprecated 3.6.21 text format; read once by main.ts and replaced by textExpansionPhrases. */
+  textExpansionRules?: string;
+  /** @deprecated 3.6.21 global mode; read once by main.ts and replaced by per-phrase modes. */
+  textExpansionMode?: 'auto' | 'delimiter';
 }
 
 export const DEFAULT_SETTINGS: RadiProtocolSettings = {
@@ -71,6 +80,7 @@ export const DEFAULT_SETTINGS: RadiProtocolSettings = {
   textSeparator: 'newline',
   useSidebarRunner: false,
   enableRunnerDraft: true,
+  showRunnerKeyHints: true,
   inlineRunnerPosition: null,
   locale: 'en',
   libraryRegistryUrl: '',
@@ -78,14 +88,17 @@ export const DEFAULT_SETTINGS: RadiProtocolSettings = {
   librarySubmissionBindings: {},
   libraryLastExportFolder: '',
   textExpansionEnabled: false,
-  textExpansionMode: 'auto',
-  textExpansionRules: DEFAULT_TEXT_EXPANSION_RULES,
+  textExpansionPhrases: DEFAULT_TEXT_EXPANSION_PHRASES.map((phrase) => ({ ...phrase })),
   textExpansionInEditor: true,
 };
 
+type SettingsPage = 'main' | 'phrases';
+
 export class RadiProtocolSettingsTab extends PluginSettingTab {
-  private plugin: RadiProtocolPlugin;
+  private readonly plugin: RadiProtocolPlugin;
+  private page: SettingsPage = 'main';
   private expansionSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private phrasesStatusEl: HTMLElement | null = null;
 
   constructor(app: App, plugin: RadiProtocolPlugin) {
     super(app, plugin);
@@ -95,16 +108,36 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    this.phrasesStatusEl = null;
+
+    if (this.page === 'phrases') {
+      this.displayPhrasesPage();
+      return;
+    }
+    this.displayMainPage();
+  }
+
+  /** Reopening the tab starts on the main page, not on a nested list. */
+  hide(): void {
+    this.page = 'main';
+    super.hide();
+  }
+
+  private displayMainPage(): void {
+    const { containerEl } = this;
+    const t = (key: string, params?: Record<string, string>) => this.plugin.i18n.t(key, params);
 
     // Group 0 — Language (Phase 84 I18N-01)
-    new Setting(containerEl).setName(this.plugin.i18n.t('settings.language', undefined, 'Language')).setHeading();
+    new Setting(containerEl)
+      .setName(this.plugin.i18n.t('settings.language', undefined, 'Language'))
+      .setHeading();
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.languageLabel'))
-      .setDesc(this.plugin.i18n.t('settings.languageDesc'))
+      .setName(t('settings.languageLabel'))
+      .setDesc(t('settings.languageDesc'))
       .addDropdown(drop => drop
-        .addOption('en', this.plugin.i18n.t('settings.english'))
-        .addOption('ru', this.plugin.i18n.t('settings.russian'))
+        .addOption('en', t('settings.english'))
+        .addOption('ru', t('settings.russian'))
         .setValue(this.plugin.settings.locale)
         .onChange(async (value) => {
           this.plugin.settings.locale = value as 'en' | 'ru';
@@ -116,12 +149,12 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.textSeparator'))
-      .setDesc(this.plugin.i18n.t('settings.textSeparatorDesc'))
+      .setName(t('settings.textSeparator'))
+      .setDesc(t('settings.textSeparatorDesc'))
       .addDropdown(drop => {
         drop
-          .addOption('newline', this.plugin.i18n.t('settings.newline'))
-          .addOption('space', this.plugin.i18n.t('settings.space'))
+          .addOption('newline', t('settings.newline'))
+          .addOption('space', t('settings.space'))
           .setValue(this.plugin.settings.textSeparator)
           .onChange(value => {
             this.plugin.settings.textSeparator = value as 'newline' | 'space';
@@ -130,8 +163,8 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.useSidebarRunner'))
-      .setDesc(this.plugin.i18n.t('settings.useSidebarRunnerDesc'))
+      .setName(t('settings.useSidebarRunner'))
+      .setDesc(t('settings.useSidebarRunnerDesc'))
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.useSidebarRunner === true)
         .onChange(async (value) => {
@@ -140,8 +173,8 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.enableRunnerDraft'))
-      .setDesc(this.plugin.i18n.t('settings.enableRunnerDraftDesc'))
+      .setName(t('settings.enableRunnerDraft'))
+      .setDesc(t('settings.enableRunnerDraftDesc'))
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.enableRunnerDraft !== false)
         .onChange(async (value) => {
@@ -149,12 +182,24 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    new Setting(containerEl)
+      .setName(t('settings.runnerKeyHints'))
+      .setDesc(t('settings.runnerKeyHintsDesc'))
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showRunnerKeyHints !== false)
+        .onChange(async (value) => {
+          this.plugin.settings.showRunnerKeyHints = value;
+          await this.plugin.saveSettings();
+        }));
+
+    this.renderRunnerKeyReference(containerEl);
+
     // Group 1.5 — Typed text expansion (the Substitutions / Text Snippets replacement)
-    new Setting(containerEl).setName(this.plugin.i18n.t('settings.expansionHeading')).setHeading();
+    new Setting(containerEl).setName(t('settings.expansionHeading')).setHeading();
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.textExpansionEnabled'))
-      .setDesc(this.plugin.i18n.t('settings.textExpansionEnabledDesc'))
+      .setName(t('settings.textExpansionEnabled'))
+      .setDesc(t('settings.textExpansionEnabledDesc'))
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.textExpansionEnabled === true)
         .onChange(async (value) => {
@@ -163,22 +208,21 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    const phrases = this.getPhrases();
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.textExpansionMode'))
-      .setDesc(this.plugin.i18n.t('settings.textExpansionModeDesc'))
-      .addDropdown(drop => drop
-        .addOption('auto', this.plugin.i18n.t('settings.textExpansionModeAuto'))
-        .addOption('delimiter', this.plugin.i18n.t('settings.textExpansionModeDelimiter'))
-        .setValue(this.plugin.settings.textExpansionMode ?? 'auto')
-        .onChange(async (value) => {
-          this.plugin.settings.textExpansionMode = value as 'auto' | 'delimiter';
-          this.plugin.applyTextExpansionSettings();
-          await this.plugin.saveSettings();
+      .setName(t('settings.textExpansionPhrases'))
+      .setDesc(t('settings.textExpansionPhrasesDesc', { count: String(phrases.length) }))
+      .addButton(button => button
+        .setButtonText(t('settings.textExpansionManagePhrases'))
+        .setIcon('list')
+        .onClick(() => {
+          this.page = 'phrases';
+          this.display();
         }));
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.textExpansionInEditor'))
-      .setDesc(this.plugin.i18n.t('settings.textExpansionInEditorDesc'))
+      .setName(t('settings.textExpansionInEditor'))
+      .setDesc(t('settings.textExpansionInEditorDesc'))
       .addToggle(toggle => toggle
         .setValue(this.plugin.settings.textExpansionInEditor !== false)
         .onChange(async (value) => {
@@ -187,36 +231,16 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    let expansionStatusEl: HTMLElement | null = null;
-    new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.textExpansionRules'))
-      .setDesc(this.plugin.i18n.t('settings.textExpansionRulesDesc'))
-      .addTextArea(text => {
-        text.inputEl.rows = 10;
-        text.inputEl.addClass('rp-expansion-rules');
-        text
-          .setPlaceholder(this.plugin.i18n.t('settings.textExpansionRulesPlaceholder'))
-          .setValue(this.plugin.settings.textExpansionRules ?? '')
-          .onChange((value) => {
-            this.plugin.settings.textExpansionRules = value;
-            this.plugin.applyTextExpansionSettings();
-            this.updateExpansionRuleStatus(expansionStatusEl, value);
-            this.scheduleExpansionSave();
-          });
-      });
-    expansionStatusEl = containerEl.createEl('p', { cls: 'rp-expansion-rules-status' });
-    this.updateExpansionRuleStatus(expansionStatusEl, this.plugin.settings.textExpansionRules ?? '');
-
     // Group 2 — Storage
-    new Setting(containerEl).setName(this.plugin.i18n.t('settings.storageHeading')).setHeading();
+    new Setting(containerEl).setName(t('settings.storageHeading')).setHeading();
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.protocolFolder'))
-      .setDesc(this.plugin.i18n.t('settings.protocolFolderDesc'))
+      .setName(t('settings.protocolFolder'))
+      .setDesc(t('settings.protocolFolderDesc'))
       .addText(text => {
         new FolderSuggest(this.app, text.inputEl);
         text
-          .setPlaceholder(this.plugin.i18n.t('settings.protocolFolderPlaceholder'))
+          .setPlaceholder(t('settings.protocolFolderPlaceholder'))
           .setValue(this.plugin.settings.protocolFolderPath)
           .onChange(async (value) => {
             this.plugin.settings.protocolFolderPath = normalizeProtocolFolderPath(value);
@@ -228,12 +252,12 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.snippetFolder'))
-      .setDesc(this.plugin.i18n.t('settings.snippetFolderDesc'))
+      .setName(t('settings.snippetFolder'))
+      .setDesc(t('settings.snippetFolderDesc'))
       .addText(text => {
         new FolderSuggest(this.app, text.inputEl);
         text
-          .setPlaceholder(this.plugin.i18n.t('settings.snippetFolderPathPlaceholder'))
+          .setPlaceholder(t('settings.snippetFolderPathPlaceholder'))
           .setValue(this.plugin.settings.snippetFolderPath)
           .onChange(async (value) => {
             this.plugin.settings.snippetFolderPath = normalizeProtocolFolderPath(value) || 'Snippets';
@@ -243,14 +267,14 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       });
 
     // Group — Advanced (Slice 9 — community library)
-    new Setting(containerEl).setName(this.plugin.i18n.t('settings.advancedHeading')).setHeading();
+    new Setting(containerEl).setName(t('settings.advancedHeading')).setHeading();
 
     new Setting(containerEl)
-      .setName(this.plugin.i18n.t('settings.libraryRegistryUrl'))
-      .setDesc(this.plugin.i18n.t('settings.libraryRegistryUrlDesc'))
+      .setName(t('settings.libraryRegistryUrl'))
+      .setDesc(t('settings.libraryRegistryUrlDesc'))
       .addText(text => {
         text
-          .setPlaceholder(this.plugin.i18n.t('settings.libraryRegistryUrlPlaceholder'))
+          .setPlaceholder(t('settings.libraryRegistryUrlPlaceholder'))
           .setValue(this.plugin.settings.libraryRegistryUrl ?? '')
           .onChange(async (value) => {
             this.plugin.settings.libraryRegistryUrl = value.trim();
@@ -263,7 +287,7 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
 
     // Quick 260430-s48: relocated to bottom; addresses collapsed behind <details>.
     // Stateless: addresses are hard-coded constants in ./donate/wallets, no settings persistence.
-    new Setting(containerEl).setName(this.plugin.i18n.t('settings.donateHeading')).setHeading();
+    new Setting(containerEl).setName(t('settings.donateHeading')).setHeading();
 
     containerEl.createEl('p', {
       text: this.plugin.i18n.t('donate.invitation'),
@@ -273,7 +297,7 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
     // Quick 260430-s48: addresses collapsed by default to reduce settings-tab clutter.
     const detailsEl = containerEl.createEl('details', { cls: 'rp-donate-details' });
     detailsEl.createEl('summary', {
-      text: this.plugin.i18n.t('settings.showWalletAddresses'),
+      text: t('settings.showWalletAddresses'),
       cls: 'rp-donate-summary',
     });
 
@@ -289,35 +313,221 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       });
       setting.addExtraButton(btn => btn
         .setIcon('copy')
-        .setTooltip(this.plugin.i18n.t('donate.copyAddress'))
+        .setTooltip(t('donate.copyAddress'))
         .onClick(() => {
           void navigator.clipboard.writeText(address).then(() => {
-            new Notice(this.plugin.i18n.t('donate.addressCopied'));
+            new Notice(t('donate.addressCopied'));
           });
         })
       );
     }
   }
 
-  /**
-   * Show how many author lines are not valid rules. Silent ignoring is worse
-   * than a visible count: a typo would otherwise look like a broken trigger.
-   */
-  private updateExpansionRuleStatus(el: HTMLElement | null, source: string): void {
-    if (el === null) return;
-    const { invalid } = parseRuleLines(source);
-    el.toggleClass('is-hidden', invalid.length === 0);
-    el.setText(invalid.length === 0
-      ? ''
-      : this.plugin.i18n.t('settings.textExpansionInvalid', { count: String(invalid.length) }));
+  /** The phrase list is a nested page of the same settings tab. */
+  private displayPhrasesPage(): void {
+    const { containerEl } = this;
+    const t = (key: string, params?: Record<string, string>) => this.plugin.i18n.t(key, params);
+
+    const backRow = new Setting(containerEl);
+    backRow.settingEl.addClass('rp-settings-back-row');
+    backRow.addButton(button => button
+      .setButtonText(t('settings.back'))
+      .setIcon('arrow-left')
+      .onClick(() => {
+        this.page = 'main';
+        this.display();
+      }));
+
+    new Setting(containerEl)
+      .setName(t('settings.textExpansionPhrasesPageTitle'))
+      .setHeading();
+
+    containerEl.createEl('p', {
+      text: t('settings.textExpansionPhrasesPageDesc'),
+      cls: 'rp-phrase-hint',
+    });
+
+    if (this.plugin.settings.textExpansionEnabled !== true) {
+      containerEl.createEl('p', {
+        text: t('settings.textExpansionPhrasesDisabled'),
+        cls: 'rp-phrase-hint rp-phrase-disabled-hint',
+      });
+    }
+
+    const statusEl = containerEl.createEl('p', { cls: 'rp-phrase-status is-hidden' });
+    this.phrasesStatusEl = statusEl;
+
+    const listEl = containerEl.createDiv({ cls: 'rp-phrase-list' });
+    const phrases = this.getPhrases();
+    if (phrases.length === 0) {
+      listEl.createEl('p', {
+        text: t('settings.textExpansionPhrasesEmpty'),
+        cls: 'rp-phrase-empty',
+      });
+    }
+    phrases.forEach((phrase, index) => this.renderPhraseRow(listEl, phrase, index));
+    this.updatePhrasesStatus(statusEl, phrases);
+
+    const addRow = new Setting(containerEl);
+    addRow.settingEl.addClass('rp-phrase-add-row');
+    addRow.addButton(button => button
+      .setButtonText(t('settings.textExpansionAddPhrase'))
+      .setIcon('plus')
+      .onClick(() => {
+        this.getPhrases().push({ trigger: '', replacement: '', mode: 'auto' });
+        this.persistPhrases();
+        this.display();
+      }));
+
+    containerEl.createEl('p', {
+      text: t('settings.textExpansionHotkeyHint'),
+      cls: 'rp-phrase-hint',
+    });
   }
 
-  /** The rules textarea changes per keystroke; persist it on a short delay. */
+  private renderPhraseRow(parent: HTMLElement, phrase: ExpansionRule, index: number): void {
+    const t = (key: string, params?: Record<string, string>) => this.plugin.i18n.t(key, params);
+    const setting = new Setting(parent);
+    setting.settingEl.addClass('rp-phrase-row');
+
+    setting.addText(text => {
+      text.inputEl.addClass('rp-phrase-trigger');
+      text.inputEl.setAttribute('aria-label', t('settings.textExpansionPhraseTrigger'));
+      text.inputEl.setAttribute('data-rp-phrase-index', String(index));
+      const markValidity = (value: string): void => {
+        const valid = isValidTrigger(value);
+        text.inputEl.toggleClass('rp-phrase-trigger-invalid', !valid);
+        text.inputEl.setAttribute('aria-invalid', String(!valid));
+      };
+      markValidity(phrase.trigger);
+      text
+        .setPlaceholder(t('settings.textExpansionPhraseTriggerPlaceholder'))
+        .setValue(phrase.trigger)
+        .onChange((value) => {
+          phrase.trigger = value;
+          markValidity(value);
+          this.onPhrasesEdited();
+        });
+    });
+
+    setting.addText(text => {
+      text.inputEl.addClass('rp-phrase-replacement');
+      text.inputEl.setAttribute('aria-label', t('settings.textExpansionPhraseReplacement'));
+      text.inputEl.setAttribute('data-rp-phrase-index', String(index));
+      text
+        .setPlaceholder(t('settings.textExpansionPhraseReplacementPlaceholder'))
+        .setValue(phrase.replacement)
+        .onChange((value) => {
+          phrase.replacement = value;
+          this.onPhrasesEdited();
+        });
+    });
+
+    const isHotkey = phrase.mode === 'hotkey';
+    setting.addExtraButton(button => button
+      .setIcon(isHotkey ? 'keyboard' : 'zap')
+      .setTooltip(isHotkey
+        ? t('settings.textExpansionPhraseModeToAuto')
+        : t('settings.textExpansionPhraseModeToHotkey'))
+      .onClick(() => {
+        const toHotkey = phrase.mode !== 'hotkey';
+        phrase.mode = toHotkey ? 'hotkey' : 'auto';
+        // Update in place so a long list keeps its scroll position.
+        button
+          .setIcon(toHotkey ? 'keyboard' : 'zap')
+          .setTooltip(toHotkey
+            ? t('settings.textExpansionPhraseModeToAuto')
+            : t('settings.textExpansionPhraseModeToHotkey'));
+        this.persistPhrases();
+      }));
+
+    setting.addExtraButton(button => button
+      .setIcon('trash')
+      .setTooltip(t('settings.textExpansionPhraseDelete'))
+      .onClick(() => {
+        const phrases = this.getPhrases();
+        const at = phrases.indexOf(phrase);
+        if (at >= 0) phrases.splice(at, 1);
+        this.persistPhrases();
+        this.display();
+      }));
+  }
+
+  /** Show how many rows are invalid; silently ignoring a typo looks like a broken trigger. */
+  private updatePhrasesStatus(el: HTMLElement | null, phrases: ExpansionRule[]): void {
+    if (el === null) return;
+    const invalid = countInvalidPhrases(phrases);
+    el.toggleClass('is-hidden', invalid === 0);
+    el.setText(invalid === 0
+      ? ''
+      : this.plugin.i18n.t('settings.textExpansionPhrasesInvalid', { count: String(invalid) }));
+  }
+
+  private onPhrasesEdited(): void {
+    this.plugin.applyTextExpansionSettings();
+    this.updatePhrasesStatus(this.phrasesStatusEl, this.getPhrases());
+    this.scheduleExpansionSave();
+  }
+
+  private persistPhrases(): void {
+    this.plugin.applyTextExpansionSettings();
+    void this.plugin.saveSettings();
+  }
+
+  /** The phrase inputs change per keystroke; persist them on a short delay. */
   private scheduleExpansionSave(): void {
     if (this.expansionSaveTimer !== null) clearTimeout(this.expansionSaveTimer);
     this.expansionSaveTimer = setTimeout(() => {
       this.expansionSaveTimer = null;
       void this.plugin.saveSettings();
     }, 400);
+  }
+
+  private getPhrases(): ExpansionRule[] {
+    if (!Array.isArray(this.plugin.settings.textExpansionPhrases)) {
+      this.plugin.settings.textExpansionPhrases = DEFAULT_TEXT_EXPANSION_PHRASES.map(
+        (phrase) => ({ ...phrase }),
+      );
+    }
+    return this.plugin.settings.textExpansionPhrases;
+  }
+
+  /** Inline cheat sheet opened from the same place as the visibility toggle. */
+  private renderRunnerKeyReference(containerEl: HTMLElement): void {
+    const t = (key: string) => this.plugin.i18n.t(key);
+    const details = containerEl.createEl('details', { cls: 'rp-runner-keys-reference' });
+    details.createEl('summary', {
+      text: t('settings.runnerKeysReference'),
+      cls: 'rp-runner-keys-summary',
+    });
+
+    const table = details.createEl('table', { cls: 'rp-runner-keys-table' });
+    const body = table.createEl('tbody');
+    const rows: Array<[string, string]> = [
+      ['1–9', t('protocolRunner.hintChoose')],
+      ['Z / Backspace', t('protocolRunner.hintBack')],
+      ['X', t('protocolRunner.hintRedo')],
+      ['Ctrl+← / Alt+←', t('settings.runnerKeyLegacyBack')],
+      ['Ctrl+→ / Alt+→', t('settings.runnerKeyLegacyRedo')],
+      ['S', t('protocolRunner.hintSkip')],
+      ['F', t('protocolRunner.hintFreeText')],
+      ['C', t('protocolRunner.hintConclusion')],
+      ['V', t('protocolRunner.hintInsert')],
+      ['Ctrl+Space', t('settings.runnerKeyConfirm')],
+      ['Shift+Enter', t('settings.runnerKeyOldConfirm')],
+      ['Enter', t('settings.runnerKeyDraftEnter')],
+      ['Shift+Enter', t('settings.runnerKeyDraftNewline')],
+      ['Tab / Shift+Tab', t('settings.runnerKeyTab')],
+      ['j / k / Tab / Shift+Tab', t('settings.runnerKeyPicker')],
+      ['H', t('protocolRunner.hintHints')],
+      ['Esc', t('protocolRunner.hintClose')],
+    ];
+
+    for (const [keys, action] of rows) {
+      const row = body.createEl('tr');
+      const keyCell = row.createEl('td', { cls: 'rp-runner-keys-key' });
+      keyCell.createEl('kbd', { text: keys });
+      row.createEl('td', { text: action, cls: 'rp-runner-keys-action' });
+    }
   }
 }

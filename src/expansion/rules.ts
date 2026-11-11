@@ -1,13 +1,17 @@
 // expansion/rules.ts
-// Author-facing text-expansion rules, stored as one rule per line in settings.
+// Phrase model for typed text expansion.
 //
-// Line grammar — everything after the first separator is the replacement:
-//   trigger => replacement
-//   trigger → replacement
+// A phrase has a single-word trigger, a replacement, and an insertion mode:
+//   * auto   — replace as soon as the trigger has been typed (the
+//              Substitutions behaviour: `-->` becomes `→` immediately).
+//   * hotkey — leave the typed word alone until the user runs the
+//              `Insert phrase from trigger` command (the Text Snippets
+//              shortcut behaviour, but with one user-assigned chord).
 //
-// Blank lines and lines starting with `#` are ignored (comments). A trigger
-// must be a single word: the delimiter mode matches whole words, and keeping
-// one rule set for both modes would otherwise behave differently per mode.
+// Phrases live in settings as a structured list (`textExpansionPhrases`) and
+// are edited row by row. `parseRuleLines()` remains as the one-way migration
+// reader for the 3.6.21 `trigger => replacement` text format; the new UI never
+// writes that format again.
 //
 // Replacement markers (the union of what the two replaced plugins offered):
 //   \n, \t, \b, \\   escaped characters
@@ -16,15 +20,19 @@
 //
 // This module is pure: no DOM, no Obsidian, no settings access.
 
-/** One parsed rule. `replacement` is the raw author text, markers included. */
+export type ExpansionMode = 'auto' | 'hotkey';
+
+/** One phrase. `replacement` is the raw author text, markers included. */
 export interface ExpansionRule {
   trigger: string;
   replacement: string;
+  /** Absent is treated as `auto` so hand-written and legacy data stays valid. */
+  mode?: ExpansionMode;
 }
 
 interface ParsedRules {
   rules: ExpansionRule[];
-  /** Non-comment lines that could not be parsed; kept for the settings notice. */
+  /** Non-comment lines that could not be parsed; kept for the migration check. */
   invalid: string[];
 }
 
@@ -44,7 +52,53 @@ const ESCAPES: Record<string, string> = {
   '\\': '\\',
 };
 
-export function parseRuleLines(source: string): ParsedRules {
+/** A trigger must be one word: both modes match it as a single token. */
+export function isValidTrigger(trigger: string): boolean {
+  const trimmed = trigger.trim();
+  return trimmed !== '' && !/\s/u.test(trimmed);
+}
+
+export function isHotkeyRule(rule: ExpansionRule): boolean {
+  return rule.mode === 'hotkey';
+}
+
+export function isAutoRule(rule: ExpansionRule): boolean {
+  return rule.mode !== 'hotkey';
+}
+
+/**
+ * Drops invalid rows and copies the rest, so the adapters never receive a
+ * blank or multi-word trigger. Surrounding whitespace is trimmed; a trigger
+ * with internal whitespace is invalid.
+ */
+export function normalizePhrases(phrases: ExpansionRule[]): ExpansionRule[] {
+  const normalized: ExpansionRule[] = [];
+  for (const phrase of phrases) {
+    const trigger = phrase.trigger.trim();
+    if (trigger === '' || /\s/u.test(trigger)) continue;
+    normalized.push({
+      trigger,
+      replacement: phrase.replacement,
+      mode: isHotkeyRule(phrase) ? 'hotkey' : 'auto',
+    });
+  }
+  return normalized;
+}
+
+/** Number of rows the new settings page marks as invalid. */
+export function countInvalidPhrases(phrases: ExpansionRule[]): number {
+  return phrases.filter((phrase) => !isValidTrigger(phrase.trigger)).length;
+}
+
+/**
+ * One-way reader for the old `trigger => replacement` settings text.
+ * The legacy global `delimiter` mode mapped to Space; its closest equivalent
+ * in the new model is a phrase that waits for an explicit hotkey.
+ */
+export function parseRuleLines(
+  source: string,
+  mode: ExpansionMode = 'auto',
+): ParsedRules {
   const rules: ExpansionRule[] = [];
   const invalid: string[] = [];
 
@@ -60,20 +114,15 @@ export function parseRuleLines(source: string): ParsedRules {
 
     const trigger = line.slice(0, separator.index).trim();
     const replacement = line.slice(separator.index + separator[0].length);
-    if (trigger === '' || /\s/u.test(trigger)) {
+    if (!isValidTrigger(trigger)) {
       invalid.push(rawLine);
       continue;
     }
 
-    rules.push({ trigger, replacement });
+    rules.push({ trigger, replacement, mode });
   }
 
   return { rules, invalid };
-}
-
-/** Round-trips parsed rules back to the editable settings text. */
-export function serializeRuleLines(rules: ExpansionRule[]): string {
-  return rules.map((rule) => `${rule.trigger} => ${rule.replacement}`).join('\n');
 }
 
 /**
@@ -119,10 +168,19 @@ export function resolveExpansion(raw: string): ResolvedExpansion {
   return { text, caret: caret ?? text.length };
 }
 
-/** Defaults shown on a fresh install once text expansion is enabled. */
-export const DEFAULT_TEXT_EXPANSION_RULES = serializeRuleLines([
-  { trigger: '-->', replacement: '→' },
-  { trigger: '<--', replacement: '←' },
-  { trigger: '!=', replacement: '≠' },
-  { trigger: '1/2', replacement: '½' },
-]);
+/** Defaults shown on a fresh install. */
+export const DEFAULT_TEXT_EXPANSION_PHRASES: ExpansionRule[] = [
+  { trigger: '-->', replacement: '→', mode: 'auto' },
+  { trigger: '<--', replacement: '←', mode: 'auto' },
+  { trigger: '!=', replacement: '≠', mode: 'auto' },
+  { trigger: '1/2', replacement: '½', mode: 'auto' },
+];
+
+/** Legacy settings reader used by `main.ts` when upgrading from 3.6.21. */
+export function phrasesFromLegacyRules(
+  source: string | undefined,
+  legacyMode: 'auto' | 'delimiter' | undefined,
+): ExpansionRule[] {
+  if (source === undefined) return [];
+  return parseRuleLines(source, legacyMode === 'delimiter' ? 'hotkey' : 'auto').rules;
+}
