@@ -536,7 +536,12 @@ describe('shared loop picker — numbered option registration', () => {
   });
 
   it('focuses a free-text loop target instead of choosing it', () => {
-    const registered: Array<{ element: MockEl; activate: () => void; keyboardElement?: MockEl }> = [];
+    const registered: Array<{
+      element: MockEl;
+      activate: () => void;
+      keyboardElement?: MockEl;
+      submit?: () => void;
+    }> = [];
     const onSubmitFreeText = vi.fn();
     const host = makeHost({
       registerOption: (option) => registered.push(option as unknown as typeof registered[number]),
@@ -554,5 +559,16 @@ describe('shared loop picker — numbered option registration', () => {
     registered[0]?.activate();
     expect(registered[0]?.keyboardElement?.focusCount).toBe(1);
     expect(onSubmitFreeText).not.toHaveBeenCalled();
+
+    // 3.6.19: Ctrl+Space submits through the same path as the button.
+    const textarea = registered[0]!.keyboardElement!;
+    textarea.value = 'typed into loop';
+    expect(registered[0]?.submit).toBeTypeOf('function');
+    registered[0]?.submit?.();
+    expect(onSubmitFreeText).toHaveBeenCalledTimes(1);
+    expect(onSubmitFreeText).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'e-text' }),
+      'typed into loop',
+    );
   });
 });

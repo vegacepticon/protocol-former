@@ -395,6 +395,19 @@ describe('shared question branch renderer', () => {
     expect(modPreventDefault).not.toHaveBeenCalled();
     expect(metaPreventDefault).not.toHaveBeenCalled();
     expect(plainPreventDefault).not.toHaveBeenCalled();
+
+    // 3.6.19: the registered option carries the same submit path, so the host
+    // can route Ctrl+Space to the field that owns the event target.
+    const freeTextOption = harness.registeredOptions.find(
+      (option) => (option.keyboardElement as unknown as MockEl | undefined) === textarea,
+    );
+    expect(freeTextOption?.submit).toBeTypeOf('function');
+    freeTextOption?.submit?.();
+    expect(harness.onSubmitFreeText).toHaveBeenCalledTimes(3);
+    expect(harness.onSubmitFreeText.mock.calls[2]).toEqual([
+      expect.objectContaining({ id: 'free' }),
+      'submitted',
+    ]);
   });
 
   it('requests initial focus only for a sole free-text action and honors explicit mixed-question focus', () => {

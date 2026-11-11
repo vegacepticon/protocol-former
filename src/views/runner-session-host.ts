@@ -332,7 +332,7 @@ export class RunnerSessionHost {
       target: event.target as HTMLElement | null,
     }, this.buildKeyContext(this.runner.getState()));
     if (action === null) return false;
-    const handled = this.handleKeyAction(action);
+    const handled = this.handleKeyAction(action, event.target);
     if (handled) event.preventDefault();
     return handled;
   }
@@ -362,7 +362,7 @@ export class RunnerSessionHost {
     return hasAnswers && typeof this.runner.skip === 'function';
   }
 
-  private handleKeyAction(action: RunnerKeyAction): boolean {
+  private handleKeyAction(action: RunnerKeyAction, target?: EventTarget | null): boolean {
     switch (action.kind) {
       case 'choose-option': {
         const option = this.renderedOptions[action.index - 1];
@@ -389,6 +389,17 @@ export class RunnerSessionHost {
         return true;
       case 'focus-free-text':
         return this.focusFreeTextOption();
+      case 'submit-free-text': {
+        // Ctrl+Space confirms the free-text field the caret is in. The target
+        // check keeps the chord inert anywhere else (root, conclusion draft,
+        // option buttons), so no other control loses its native Space.
+        const option = this.renderedOptions.find(
+          (candidate) => candidate.keyboardElement === target,
+        );
+        if (option?.submit === undefined) return false;
+        option.submit();
+        return true;
+      }
       case 'focus-conclusion': {
         if (this.conclusionDraft === null) return false;
         this.conclusionDraft.focusInput();

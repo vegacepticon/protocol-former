@@ -183,3 +183,41 @@ describe('runner keymap — composition and text entry', () => {
     expect(isTextEntryTarget({ tagName: 'SPAN', isContentEditable: true })).toBe(true);
   });
 });
+
+describe('runner keymap — Ctrl+Space submit', () => {
+  it('resolves Ctrl+Space to the free-text submit action', () => {
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true })).toBe('submit-free-text');
+  });
+
+  it('falls back to the key value when code is missing', () => {
+    expect(resolve({ key: ' ', ctrlKey: true })).toBe('submit-free-text');
+  });
+
+  it('resolves from a text-entry target — the caret lives in the field', () => {
+    expect(resolve({
+      code: 'Space',
+      key: ' ',
+      ctrlKey: true,
+      target: { tagName: 'TEXTAREA' },
+    })).toBe('submit-free-text');
+  });
+
+  it('stays inert when no free-text option is projected', () => {
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true }, NOTHING_AVAILABLE)).toBeNull();
+  });
+
+  it('rejects Meta and Alt variants instead of guessing', () => {
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true, metaKey: true })).toBeNull();
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true, altKey: true })).toBeNull();
+    expect(resolve({ code: 'Space', key: ' ', metaKey: true })).toBeNull();
+  });
+
+  it('ignores the chord during IME composition', () => {
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true, isComposing: true })).toBeNull();
+    expect(resolve({ code: 'Space', key: ' ', ctrlKey: true, keyCode: 229 })).toBeNull();
+  });
+
+  it('does not treat plain Space as the chord', () => {
+    expect(resolve({ code: 'Space', key: ' ' })).toBeNull();
+  });
+});

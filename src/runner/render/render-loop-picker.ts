@@ -95,20 +95,24 @@ function appendLoopFreeTextAnswer(
     }
     growTextarea(textarea);
   });
+  // One submit path for the button, the Shift+Enter alias, and Ctrl+Space; see
+  // the matching rule in render-question.ts.
+  const submit = (): void => {
+    void host.onSubmitFreeText(edge, textarea.value);
+  };
   host.bindKeydown(textarea, (event) => {
     if (event.key !== 'Enter' || !event.shiftKey) return;
     event.preventDefault();
-    void host.onSubmitFreeText(edge, textarea.value);
+    submit();
   });
-  host.bindClick(submitButton, () => {
-    void host.onSubmitFreeText(edge, textarea.value);
-  });
+  host.bindClick(submitButton, submit);
   // A digit aimed at a free-text loop target focuses the field; see the
   // matching rule in render-question.ts.
   host.registerOption({
     element: row,
     keyboardElement: textarea,
     activate: () => textarea.focus(),
+    submit,
   });
 
   host.scheduleTextareaResize(textarea, () => growTextarea(textarea));

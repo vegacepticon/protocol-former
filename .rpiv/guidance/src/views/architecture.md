@@ -106,6 +106,8 @@ The runner host intentionally owns protocol migration/read/validation, accumulat
 3. Inject services/translator; render dynamic content as text; guard late async work.
 4. Unmount child pickers and clear timers/listeners during close.
 5. Add confirm/cancel/Escape/failure/double-resolution tests; see `.rpiv/guidance/src/__tests__/views/architecture.md`.
+
+`SnippetFillInModal` is the reference for keyboard-heavy modals: it focuses the first placeholder on open (re-asserted on the next tick because Obsidian re-focuses the modal container), gives each choice `fieldset` a single roving `tabindex` stop with arrow navigation across the option pills and the `✎` Custom toggle, accepts `1`–`9` only while focus is inside that group (the Custom textarea keeps digits for typing), and confirms on `isConfirmChord()` from `runner/keymap.ts` with `Shift+Enter` as a legacy alias. Keep such chords in the shared helper rather than as inline `event.key` checks.
 </important>
 
 <important if="you are adding a new ItemView">

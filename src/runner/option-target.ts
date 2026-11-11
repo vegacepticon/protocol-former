@@ -12,4 +12,9 @@ export interface RunnerOptionTarget {
   activate(): void;
   /** Interactive element that receives `aria-keyshortcuts`; defaults to `element`. */
   keyboardElement?: HTMLElement;
+  /**
+   * Submits the option's current value for Ctrl+Space. Only free-text options
+   * set it; the host uses it to confirm the field that owns the event target.
+   */
+  submit?: () => void;
 }

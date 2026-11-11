@@ -33,6 +33,8 @@ interface MockEl {
   inputMode: string;
   readOnly: boolean;
   scrollHeight: number;
+  /** Times `focus()` was called; lets autofocus/roving assertions be observable. */
+  focusCount: number;
   dataset: Record<string, string>;
   style: Record<string, string>;
   // accessor-backed: textContent, value, disabled, type, checked, style
@@ -90,6 +92,7 @@ function makeEl(tag = 'div'): MockEl {
     inputMode: '',
     readOnly: false,
     scrollHeight: 0,
+    focusCount: 0,
     dataset,
     createEl(
       subtag: string,
@@ -147,7 +150,7 @@ function makeEl(tag = 'div'): MockEl {
         style[key] = val;
       }
     },
-    focus(): void {},
+    focus(): void { (el as unknown as { focusCount: number }).focusCount += 1; },
     addEventListener(type: string, handler: (ev: unknown) => void): void {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type)!.push(handler);
@@ -1160,5 +1163,214 @@ describe('SnippetFillInModal — Shift+Enter confirms', () => {
     modal.onClose();
     expect((root._listeners.get('keydown') ?? []).length).toBe(0);
     expect(await modal.result).toBeNull();
+  });
+});
+
+// =========================================================================
+// Ctrl+Space confirm, autofocus, roving tabindex, digit toggles (3.6.19)
+// =========================================================================
+
+/** Dispatch a keydown on `host` with `target` overridden (MockEl has no bubbling). */
+function dispatchKeydownOn(
+  host: MockEl,
+  target: MockEl,
+  key: string,
+  mods: {
+    code?: string;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+    isComposing?: boolean;
+  } = {},
+): { preventDefault: ReturnType<typeof vi.fn> } {
+  const preventDefault = vi.fn();
+  host.dispatchEvent({
+    type: 'keydown',
+    key,
+    code: mods.code ?? '',
+    target,
+    ctrlKey: !!mods.ctrlKey,
+    altKey: !!mods.altKey,
+    metaKey: !!mods.metaKey,
+    shiftKey: !!mods.shiftKey,
+    isComposing: !!mods.isComposing,
+    preventDefault,
+  } as unknown as { type: string; target?: MockEl });
+  return { preventDefault };
+}
+
+function openModalWithChoice(options: string[] = ['A', 'B', 'C']): {
+  modal: SnippetFillInModal;
+  root: MockEl;
+  options: MockEl[];
+  toggle: MockEl;
+  customInput: MockEl;
+} {
+  const snippet = makeSnippet(
+    [{ id: 'c', label: 'C', type: 'choice', options }],
+    'R: {{c}}',
+  );
+  const modal = new SnippetFillInModal(app, snippet);
+  modal.onOpen();
+  const root = (modal as unknown as { contentEl: MockEl }).contentEl;
+  const buttons = root.querySelectorAll('.rp-snippet-fill-option-row');
+  const toggle = root.querySelector('.rp-snippet-modal-custom-toggle');
+  const customInput = root.querySelector('.rp-snippet-modal-custom-input');
+  if (!toggle || !customInput) throw new Error('choice field incomplete');
+  return { modal, root, options: buttons, toggle, customInput };
+}
+
+describe('SnippetFillInModal — Ctrl+Space confirms', () => {
+  it('confirms from a free-text field and blocks the character', async () => {
+    const { modal, root, field } = openModalWithFreeText();
+    (field as unknown as { _value: string })._value = 'text';
+    field.dispatchEvent({ type: 'input' });
+
+    const { preventDefault } = dispatchKeydownOn(root, field, ' ', {
+      code: 'Space',
+      ctrlKey: true,
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(await modal.result).toBe('R: text');
+  });
+
+  it('confirms from a choice group', async () => {
+    const { modal, root, options } = openModalWithChoice();
+    options[0]!.dispatchEvent({ type: 'click' });
+
+    const { preventDefault } = dispatchKeydownOn(root, options[0]!, ' ', {
+      code: 'Space',
+      ctrlKey: true,
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(await modal.result).toBe('R: A');
+  });
+
+  it('confirms from the expanded Custom override', async () => {
+    const { modal, root, toggle, customInput } = openModalWithChoice();
+    toggle.dispatchEvent({ type: 'click' });
+    (customInput as unknown as { _value: string })._value = 'custom value';
+    customInput.dispatchEvent({ type: 'input' });
+
+    dispatchKeydownOn(root, customInput, ' ', { code: 'Space', ctrlKey: true });
+
+    expect(await modal.result).toBe('R: custom value');
+  });
+
+  it('ignores the chord during IME composition', () => {
+    const { modal, root, field } = openModalWithFreeText();
+    const { preventDefault } = dispatchKeydownOn(root, field, ' ', {
+      code: 'Space',
+      ctrlKey: true,
+      isComposing: true,
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect((modal as unknown as { resolved: boolean }).resolved).toBe(false);
+  });
+
+  it('does not treat plain Space or Ctrl+Alt+Space as confirm', () => {
+    const { modal, root, field } = openModalWithFreeText();
+
+    expect(dispatchKeydownOn(root, field, ' ', { code: 'Space' }).preventDefault)
+      .not.toHaveBeenCalled();
+    expect(dispatchKeydownOn(root, field, ' ', { code: 'Space', ctrlKey: true, altKey: true }).preventDefault)
+      .not.toHaveBeenCalled();
+    expect(dispatchKeydownOn(root, field, ' ', { code: 'Space', ctrlKey: true, metaKey: true }).preventDefault)
+      .not.toHaveBeenCalled();
+    expect((modal as unknown as { resolved: boolean }).resolved).toBe(false);
+  });
+});
+
+describe('SnippetFillInModal — first field focus on open', () => {
+  it('focuses the first free-text field instead of the modal container', () => {
+    const { field } = openModalWithFreeText();
+    expect(field.focusCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('focuses the first option of a choice field', () => {
+    const { options } = openModalWithChoice();
+    expect(options[0]!.focusCount).toBeGreaterThanOrEqual(1);
+    expect(options[1]!.focusCount).toBe(0);
+  });
+});
+
+describe('SnippetFillInModal — roving tabindex in a choice group', () => {
+  it('keeps one Tab stop per group and moves it with the arrows', () => {
+    const { root, options, toggle } = openModalWithChoice();
+    const fieldset = root.querySelector('fieldset')!;
+
+    expect(options[0]!.getAttribute('tabindex')).toBe('0');
+    expect(options[1]!.getAttribute('tabindex')).toBe('-1');
+    expect(options[2]!.getAttribute('tabindex')).toBe('-1');
+    expect(toggle.getAttribute('tabindex')).toBe('-1');
+
+    const right = dispatchKeydownOn(fieldset, options[0]!, 'ArrowRight', { code: 'ArrowRight' });
+    expect(right.preventDefault).toHaveBeenCalledTimes(1);
+    expect(options[1]!.getAttribute('tabindex')).toBe('0');
+    expect(options[0]!.getAttribute('tabindex')).toBe('-1');
+
+    // Down behaves like Right; the ✎ toggle sits after the last option.
+    dispatchKeydownOn(fieldset, options[2]!, 'ArrowDown', { code: 'ArrowDown' });
+    expect(toggle.getAttribute('tabindex')).toBe('0');
+    expect(toggle.focusCount).toBeGreaterThanOrEqual(1);
+
+    // Left from the first option wraps backwards onto the toggle.
+    dispatchKeydownOn(fieldset, options[0]!, 'ArrowLeft', { code: 'ArrowLeft' });
+    expect(toggle.getAttribute('tabindex')).toBe('0');
+
+    // Tab always leaves the group and is never intercepted.
+    const tab = dispatchKeydownOn(fieldset, toggle, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe('SnippetFillInModal — numeric option toggles', () => {
+  it('toggles the Nth option from inside the group and keeps ARIA in sync', () => {
+    const { root, options } = openModalWithChoice();
+    const fieldset = root.querySelector('fieldset')!;
+
+    const { preventDefault } = dispatchKeydownOn(fieldset, options[0]!, '2', { code: 'Digit2' });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(options[1]!.getAttribute('aria-pressed')).toBe('true');
+    expect(options[1]!.hasClass('is-selected')).toBe(true);
+    expect(options[0]!.getAttribute('aria-pressed')).toBe('false');
+    // The roving Tab stop follows the toggled option.
+    expect(options[1]!.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('toggles the same option back off on a second press', () => {
+    const { root, options } = openModalWithChoice();
+    const fieldset = root.querySelector('fieldset')!;
+
+    dispatchKeydownOn(fieldset, options[0]!, '2', { code: 'Digit2' });
+    dispatchKeydownOn(fieldset, options[0]!, '2', { code: 'Digit2' });
+
+    expect(options[1]!.getAttribute('aria-pressed')).toBe('false');
+    expect(options[1]!.hasClass('is-selected')).toBe(false);
+  });
+
+  it('ignores digits typed into the Custom override', () => {
+    const { root, options, toggle, customInput } = openModalWithChoice();
+    toggle.dispatchEvent({ type: 'click' });
+    const fieldset = root.querySelector('fieldset')!;
+
+    const { preventDefault } = dispatchKeydownOn(fieldset, customInput, '1', { code: 'Digit1' });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(options[0]!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('ignores digits beyond the option count', () => {
+    const { root, options } = openModalWithChoice();
+    const fieldset = root.querySelector('fieldset')!;
+
+    const { preventDefault } = dispatchKeydownOn(fieldset, options[0]!, '9', { code: 'Digit9' });
+
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });

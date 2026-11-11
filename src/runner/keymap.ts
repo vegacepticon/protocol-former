@@ -17,6 +17,8 @@
 //     letters and digits because no text field can be focused when they resolve.
 //   * Unavailable actions resolve to `null`, so callers neither act nor call
 //     preventDefault().
+//   * Ctrl+Space is the one chord that still resolves from a text-entry target:
+//     it submits the focused free-text field and must not insert a character.
 
 /** What the runner can do for the currently rendered state. */
 export interface RunnerKeyContext {
@@ -53,6 +55,7 @@ export type RunnerKeyAction =
   | { kind: 'redo' }
   | { kind: 'skip' }
   | { kind: 'focus-free-text' }
+  | { kind: 'submit-free-text' }
   | { kind: 'focus-conclusion' }
   | { kind: 'insert-conclusion' }
   | { kind: 'toggle-hints' }
@@ -77,6 +80,28 @@ function resolveCode(input: RunnerKeyInput): string {
   if (ASCII_LETTER_RE.test(key)) return `Key${key.toUpperCase()}`;
   if (ASCII_DIGIT_RE.test(key)) return `Digit${key}`;
   return key;
+}
+
+/**
+ * Ctrl+Space — the one-hand "confirm / insert / submit" chord.
+ *
+ * Shared by the runner's free-text fields and the snippet fill-in modal so both
+ * places answer to the same muscle memory. Chosen because it keeps plain Enter
+ * (newline) and Shift+Enter (legacy confirm) free, does not insert a character,
+ * and matches on `code`, so the Russian layout behaves the same.
+ *
+ * Deliberately stricter than the legacy arrow aliases: an extra Meta or Alt
+ * makes the chord inert instead of guessing what the user meant.
+ */
+export function isConfirmChord(
+  input: Pick<
+    RunnerKeyInput,
+    'code' | 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'isComposing' | 'keyCode'
+  >,
+): boolean {
+  if (input.isComposing === true || input.keyCode === 229) return false;
+  if (input.ctrlKey !== true || input.metaKey === true || input.altKey === true) return false;
+  return input.code === 'Space' || input.key === ' ';
 }
 
 function hasNavigationModifier(input: RunnerKeyInput): boolean {
@@ -123,6 +148,13 @@ export function resolveRunnerKey(
   context: RunnerKeyContext,
 ): RunnerKeyAction | null {
   if (input.isComposing === true || input.keyCode === 229) return null;
+
+  // Resolved before the text-entry guard: the chord is only useful while the
+  // caret is inside a field, and the host picks the field from the event target.
+  if (isConfirmChord(input)) {
+    return context.hasFreeTextOption ? { kind: 'submit-free-text' } : null;
+  }
+
   if (isTextEntryTarget(input.target)) return null;
 
   const code = resolveCode(input);

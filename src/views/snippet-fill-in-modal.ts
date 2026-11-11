@@ -6,6 +6,7 @@ import { renderMdTemplateSnippet } from '../snippets/snippet-model';
 import type { Translator } from '../i18n';
 import { defaultT } from '../i18n';
 import { createTextarea, growAutoTextarea } from '../utils/dom-helpers';
+import { isConfirmChord } from '../runner/keymap';
 
 // Phase 2 (JSON-removal): the fill-in modal accepts Markdown template snippets
 // only and renders exclusively via renderMdTemplateSnippet.
@@ -43,18 +44,25 @@ export class SnippetFillInModal extends Modal {
   /** Monotonic seed for label↔field id pairs (accessible naming without
    *  `aria-label`, which Obsidian turns into a hover tooltip). */
   private fieldIdSeed = 0;
+  /** First interactive field in render order; focused when the modal opens. */
+  private firstFieldEl: HTMLElement | null = null;
 
   /**
-   * Bubble-phase keydown listener on `contentEl` — Shift+Enter confirms.
+   * Bubble-phase keydown listener on `contentEl` — Ctrl+Space confirms
+   * (Shift+Enter stays a legacy alias).
    *
    * A contentEl-level listener is used instead of `Modal.scope` key bindings
    * because the event has to be seen while focus sits inside a placeholder
    * textarea (and scope bindings are bypassed for plain-key/typing contexts).
    * It also covers the collapsed Custom override input and the action row.
-   * Plain Enter keeps its native meaning inside a field (newline).
+   * Plain Enter keeps its native meaning inside a field (newline), and
+   * Shift+Enter keeps confirming for users who learned it before 3.6.19.
+   * The chord itself is shared with the runner's free-text submit.
    */
   private readonly onContentKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Enter' || !event.shiftKey) return;
+    if (event.isComposing) return;
+    const shiftEnter = event.key === 'Enter' && event.shiftKey;
+    if (!shiftEnter && !isConfirmChord(event)) return;
     event.preventDefault();
     this.confirm();
   };
@@ -91,6 +99,8 @@ export class SnippetFillInModal extends Modal {
       this.values[p.id] = '';
     }
 
+    this.firstFieldEl = null;
+
     // Render one field per placeholder in array order (D-12: tab order = array order)
     for (const placeholder of this.snippet.placeholders) {
       this.renderField(placeholder);
@@ -102,7 +112,12 @@ export class SnippetFillInModal extends Modal {
     // Button row — [Confirm] is last tab stop (D-12)
     this.renderButtonRow();
 
-    // Shift+Enter → Confirm (bubbled keydown from any field in the modal)
+    // Start in the first placeholder instead of the modal container: the
+    // preview is a non-interactive div, so without this the first key a user
+    // presses is always a Tab.
+    this.focusFirstField();
+
+    // Ctrl+Space → Confirm (bubbled keydown from any field in the modal)
     this.contentEl.addEventListener('keydown', this.onContentKeydown);
   }
 
@@ -122,6 +137,23 @@ export class SnippetFillInModal extends Modal {
       this.resolved = true;
       this.resolve(value);
     }
+  }
+
+  /**
+   * Focus the first placeholder field on open.
+   *
+   * Obsidian re-focuses the modal container once `onOpen` returns, so the
+   * synchronous call is re-asserted on the next tick (skipped if the modal was
+   * already confirmed or dismissed in the meantime).
+   */
+  private focusFirstField(): void {
+    const first = this.firstFieldEl;
+    if (first === null) return;
+    first.focus();
+    globalThis.setTimeout(() => {
+      if (this.resolved) return;
+      this.firstFieldEl?.focus();
+    }, 0);
   }
 
   /** Render the appropriate input field for a single placeholder. */
@@ -149,6 +181,7 @@ export class SnippetFillInModal extends Modal {
       // Start at a single compact line; growInput expands it as content grows.
       attr: { rows: 1 },
     });
+    if (this.firstFieldEl === null) this.firstFieldEl = textarea;
 
     textarea.addEventListener('input', () => {
       this.values[placeholder.id] = textarea.value;
@@ -198,6 +231,20 @@ export class SnippetFillInModal extends Modal {
       this.updatePreview();
     };
 
+    /** Flip one option pill and keep the value/preview/ARIA in sync. */
+    const toggleOption = (btn: HTMLButtonElement): void => {
+      // Clear custom input when an option button is toggled (D-06)
+      if (customInput) {
+        customInput.value = '';
+        customInput.removeClass('rp-snippet-field-filled');
+      }
+
+      const selected = !btn.hasClass('is-selected');
+      btn.toggleClass('is-selected', selected);
+      btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      recomputeValue();
+    };
+
     // Render one toggle pill button per predefined option
     for (const opt of options) {
       const btn = optionsDiv.createEl('button', {
@@ -212,16 +259,7 @@ export class SnippetFillInModal extends Modal {
       optionButtons.push(btn);
 
       btn.addEventListener('click', () => {
-        // Clear custom input when an option button is toggled (D-06)
-        if (customInput) {
-          customInput.value = '';
-          customInput.removeClass('rp-snippet-field-filled');
-        }
-
-        const selected = !btn.hasClass('is-selected');
-        btn.toggleClass('is-selected', selected);
-        btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
-        recomputeValue();
+        toggleOption(btn);
       });
     }
 
@@ -282,6 +320,56 @@ export class SnippetFillInModal extends Modal {
       }
       this.growInput(customInput);
       recomputeValue();
+    });
+
+    // Roving tabindex: one Tab stop per choice group. Arrows move between the
+    // option pills and the ✎ toggle, so a five-option field costs one Tab
+    // instead of six; Tab still leaves the group for the next field. The
+    // collapsed Custom row stays out of the set, and the toggle itself remains
+    // reachable by arrow (and as the group's Tab stop once focused).
+    const rovingMembers: HTMLElement[] = [...optionButtons, customToggle];
+    let rovingIndex = 0;
+    const setRovingIndex = (index: number, focus: boolean): void => {
+      const count = rovingMembers.length;
+      rovingIndex = ((index % count) + count) % count;
+      rovingMembers.forEach((member, i) => {
+        member.setAttribute('tabindex', i === rovingIndex ? '0' : '-1');
+      });
+      if (focus) rovingMembers[rovingIndex]?.focus();
+    };
+    setRovingIndex(0, false);
+    if (this.firstFieldEl === null) this.firstFieldEl = rovingMembers[0] ?? null;
+
+    fieldset.addEventListener('keydown', (event) => {
+      // The Custom textarea keeps every key for typing (digits, arrows, Space).
+      if (event.target === customInput) return;
+      const memberIndex = rovingMembers.indexOf(event.target as HTMLElement);
+      if (memberIndex === -1) return;
+
+      const code = event.code || event.key;
+      const delta = code === 'ArrowRight' || code === 'ArrowDown'
+        ? 1
+        : code === 'ArrowLeft' || code === 'ArrowUp'
+          ? -1
+          : 0;
+      if (delta !== 0) {
+        event.preventDefault();
+        setRovingIndex(memberIndex + delta, true);
+        return;
+      }
+
+      // 1–9 toggles the Nth option, but only from inside the group; the
+      // textarea guard above keeps digits typing themselves.
+      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(code)
+        ?? /^([1-9])$/.exec(event.key ?? '');
+      const index = digit === null ? 0 : Number(digit[1]);
+      if (index === 0) return;
+      const btn = optionButtons[index - 1];
+      if (btn === undefined) return;
+      event.preventDefault();
+      toggleOption(btn);
+      // Let Tab continue from the option that was just toggled.
+      setRovingIndex(index - 1, false);
     });
   }
 

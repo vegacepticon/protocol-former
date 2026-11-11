@@ -1412,6 +1412,44 @@ describe('RunnerSessionHost keyboard model', () => {
     h.host.dispose();
   });
 
+  it('submits the free-text field that owns the event target on Ctrl+Space', async () => {
+    const h = harness(freeTextMixedGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const textarea = h.root.querySelector('.rp-free-text-answer-textarea')!;
+    textarea.value = 'typed answer';
+    textarea.dispatchEvent({ type: 'input' });
+
+    const { event, preventDefault } = keyboard({
+      code: 'Space',
+      key: ' ',
+      ctrlKey: true,
+      target: textarea,
+    });
+    expect(h.host.handleKeydown(event)).toBe(true);
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    await flushMicrotasks();
+
+    expect(h.app.vault.modify).toHaveBeenCalledTimes(1);
+    expect(h.app.vault.modify).toHaveBeenCalledWith(h.targetNote, 'Seed\ntyped answer');
+    h.host.dispose();
+  });
+
+  it('keeps Ctrl+Space inert when the target is not a free-text field', async () => {
+    const h = harness(freeTextMixedGraph());
+    await h.host.mount(h.root as unknown as HTMLElement);
+
+    const { event, preventDefault } = keyboard({
+      code: 'Space',
+      key: ' ',
+      ctrlKey: true,
+      target: h.root,
+    });
+    expect(h.host.handleKeydown(event)).toBe(false);
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(h.app.vault.modify).not.toHaveBeenCalled();
+    h.host.dispose();
+  });
+
   it('navigates with Z, X, and Backspace, including a Russian-layout event', async () => {
     const h = harness(twoOptionGraph());
     await h.host.mount(h.root as unknown as HTMLElement);

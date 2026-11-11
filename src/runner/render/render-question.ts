@@ -109,14 +109,17 @@ function appendFreeTextAnswer(
     }
     growTextarea(textarea);
   });
+  // One submit path for the button, the Shift+Enter alias, and Ctrl+Space, so
+  // the three can never drift apart (the host dispatches the chord by target).
+  const submit = (): void => {
+    void host.onSubmitFreeText(answerNode, textarea.value);
+  };
   host.bindKeydown(textarea, (event) => {
     if (event.key !== 'Enter' || !event.shiftKey) return;
     event.preventDefault();
-    void host.onSubmitFreeText(answerNode, textarea.value);
+    submit();
   });
-  host.bindClick(submitButton, () => {
-    void host.onSubmitFreeText(answerNode, textarea.value);
-  });
+  host.bindClick(submitButton, submit);
   // A digit aimed at a free-text option moves the caret into the field: the
   // option cannot be "chosen" until text exists, and submitting an empty draft
   // on a number press would surface a spurious validation error.
@@ -124,6 +127,7 @@ function appendFreeTextAnswer(
     element: row,
     keyboardElement: textarea,
     activate: () => textarea.focus(),
+    submit,
   });
 
   host.scheduleTextareaResize(textarea, () => growTextarea(textarea));

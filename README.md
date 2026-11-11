@@ -88,13 +88,16 @@ The runner takes focus when it opens and returns focus to itself after each acti
 | `V` | Insert the conclusion draft into the bound note. |
 | `H` | Show or hide the hint row. |
 | `Esc` | Close the runner when focus is not in a text field. If the conclusion draft contains uninserted text, RadiProtocol asks before discarding it. |
-| `Shift+Enter` | Submit a free-text answer, or confirm the snippet fill-in modal. |
+| `Ctrl+Space` | Submit a free-text answer, or confirm the snippet fill-in modal. One-handed chord: it never inserts a character, so it is safe inside a field. |
+| `Shift+Enter` | Legacy alias of `Ctrl+Space` in free-text fields and in the fill-in modal. |
 | `Enter` | Add the current line as an item in the conclusion draft. |
 | `Shift+Enter` in the draft | Insert a line break instead of adding an item. |
 | `Tab` / `Shift+Tab` | Move focus forward or backward. |
 | `j` / `k` | Move through snippet picker results when the result list has focus. |
 
-Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases. The hint row is session state: it is not saved in settings.
+Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is session state: it is not saved in settings.
+
+Inside the snippet fill-in modal the caret starts in the first placeholder, so no `Tab` is needed to begin typing. A choice field is a single `Tab` stop: the arrow keys move between its options and the `✎` Custom toggle, `1`–`9` toggle the matching option without leaving the group (digits still type themselves inside a text field), and `Tab` leaves the group for the next field. `Ctrl+Space` confirms from anywhere in the modal; `Shift+Enter` keeps working as a legacy alias.
 
 ### Floating panel or right sidebar
 
