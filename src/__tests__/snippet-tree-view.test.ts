@@ -1144,7 +1144,7 @@ describe('SnippetManagerView — guarded mutation completion (Phase 2)', () => {
     expect(renameSource).toContain('await this.callbacks.completeFolderRename');
 
     const callbackInterface = rendererSource.match(
-      /export interface TreeRendererCallbacks\s*\{([\s\S]*?)\n\}/,
+      /interface TreeRendererCallbacks\s*\{([\s\S]*?)\n\}/,
     )?.[1] ?? '';
     const callbackNames = [...callbackInterface.matchAll(/^\s*(\w+)\s*\(/gm)]
       .map((match) => match[1]!);

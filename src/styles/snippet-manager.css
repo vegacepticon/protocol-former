@@ -536,14 +536,9 @@
   display: none;
 }
 
-/* Phase 77: snippet-manager-view tree indent/spacer + inline-rename label visibility (LINT-01) */
-.rp-snippet-tree-indent-inline,
-.rp-snippet-tree-spacer {
+/* Phase 77: snippet-manager-view tree indent + inline-rename label visibility (LINT-01) */
+.rp-snippet-tree-indent-inline {
   display: inline-block;
-}
-
-.rp-snippet-tree-spacer {
-  width: 12px;
 }
 
 .rp-snippet-tree-label-hidden {

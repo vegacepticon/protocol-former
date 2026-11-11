@@ -7,5 +7,3 @@ export const RUNNER_STATUS = {
   COMPLETE: "complete" as const,
   ERROR: "error" as const,
 } as const;
-
-export type RunnerStatus = typeof RUNNER_STATUS[keyof typeof RUNNER_STATUS];

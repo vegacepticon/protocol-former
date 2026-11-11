@@ -5,11 +5,6 @@ import { validatePlaceholders } from './snippet-model';
 import type { Translator } from '../i18n';
 import { defaultT } from '../i18n';
 
-export interface ParsedMarkdownTemplate {
-  snippet: MdTemplateSnippet;
-  body: string;
-}
-
 export function hasMarkdownTemplateFrontmatter(text: string): boolean {
   return text.startsWith('---\n') && text.indexOf('\n---\n', 4) > 0;
 }

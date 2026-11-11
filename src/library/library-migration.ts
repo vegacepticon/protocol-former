@@ -14,7 +14,7 @@ import {
 import { installedRecordPath } from './installed-record-store';
 
 /** A planned old→new move for one installed record. */
-export interface MigrationPlan {
+interface MigrationPlan {
   record: InstalledRecord;
   rewrittenDoc: ProtocolDocumentV1;
   oldProtocolPath: string;

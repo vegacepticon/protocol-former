@@ -44,7 +44,7 @@ Production protocol selection is `.rp.json`; `.canvas` is test-only compatibilit
 | `npx stylelint path/to/file.css --fix` | path-scoped stylesheet auto-fix |
 
 ## Business Context
-The plugin is a radiology documentation aid, not a diagnostic or decision-authority system; the radiologist remains responsible for clinical judgment and final validation. It is plugin-local with no bundled backend/authentication, uses an inline note runner rather than a sidebar runner, and treats library SHA-256 as integrity—not publisher authenticity.
+The plugin is a radiology documentation aid, not a diagnostic or decision-authority system; the radiologist remains responsible for clinical judgment and final validation. It has no bundled account/authentication system, supports both a floating note-anchored runner and an optional right-sidebar presentation, and treats library SHA-256 as integrity—not publisher authenticity. The community catalog and moderation service are external; the plugin is a client.
 
 <important if="you are adding a feature that crosses protocol, graph, runner, render, views, snippets, or library">
 ## Cross-Layer Feature Checklist

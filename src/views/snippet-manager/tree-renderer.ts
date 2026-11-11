@@ -52,7 +52,7 @@ export function basenameNoExt(path: string): string {
 // Callback interface — SnippetManagerView implements these
 // ---------------------------------------------------------------------------
 
-export interface TreeRendererCallbacks {
+interface TreeRendererCallbacks {
   selectFolder(path: string): Promise<void>;
   toggleFolder(path: string): Promise<void>;
   openEditModal(path: string): Promise<void>;

@@ -36,8 +36,9 @@ export interface RadiProtocolSettings {
   /** Phase 84 (I18N-01): UI language. Default 'en' for new installs; existing installs without this key default to 'ru' for backward compat. */
   locale: 'en' | 'ru';
   /** Slice 9 — community library registry endpoint override (advanced).
-   *  Empty/undefined → bundled DEFAULT_REGISTRY_URL (empty → "catalog unavailable").
-   *  Non-https/invalid URLs are normalized to '' by the registry client. */
+   *  Empty/undefined → bundled REGISTRY_URLS list.
+   *  Non-https/invalid URLs are normalized to '' by the registry client,
+   *  which makes the catalog unavailable. */
   libraryRegistryUrl?: string;
   /** Library submission bookkeeping: last submitted release version per packageId,
    *  so the export modal can auto-suggest the next version (+0.0.1). Legacy

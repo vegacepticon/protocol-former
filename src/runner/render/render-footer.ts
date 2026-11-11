@@ -4,7 +4,7 @@ import { setIcon } from 'obsidian';
 import { createButton } from '../../utils/dom-helpers';
 import type { Translator } from '../../i18n';
 
-export interface RunnerFooterOptions {
+interface RunnerFooterOptions {
   showBack: boolean;
   onBack: () => void;
   showSkip?: boolean;

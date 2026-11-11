@@ -32,12 +32,12 @@ type SnippetPickerHostClass =
   | typeof CSS_CLASS.STP_INLINE_HOST;
 
 /** Host-supplied copy for async errors surfaced by the picker. */
-export interface SnippetPickerCopy {
+interface SnippetPickerCopy {
   /** Snippet at the picked path could not be loaded. */
   notFound(relativePath: string): string;
 }
 
-export interface SnippetPickerRenderOptions extends RunnerFooterHost {
+interface SnippetPickerRenderOptions extends RunnerFooterHost {
   app: App;
   snippetService: SnippetService;
   /** Optional translator for footer aria-labels. */

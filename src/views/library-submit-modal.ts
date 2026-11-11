@@ -20,11 +20,11 @@ import type { LibrarySubmissionService, SubmissionResult } from '../library/subm
 import type { SubmissionErrorCode } from '../library/submission-model';
 import type { SubmitHttpTransport } from '../library/submission-client';
 
-export type LibrarySubmitResult =
+type LibrarySubmitResult =
   | { submitted: true; requestId: string; prUrl: string; reused: boolean }
   | { submitted: false };
 
-export interface LibrarySubmitModalOptions {
+interface LibrarySubmitModalOptions {
   /** Registry base URL (settings override or bundled default). '' → submit unavailable. */
   registryBaseUrl: string;
   /** Stable document id of the source protocol (binding identity, NOT the path). */
@@ -34,15 +34,6 @@ export interface LibrarySubmitModalOptions {
   transport?: SubmitHttpTransport;
   /** Injected service override (tests). Production: plugin.librarySubmissionService. */
   submissionService?: LibrarySubmissionService;
-}
-
-/** Submission metadata collected by THIS modal (owner of the form fields). */
-export interface LibrarySubmitFormMeta {
-  title: string;
-  description: string;
-  categories: string[];
-  authorDisplayName: string;
-  note: string;
 }
 
 export class LibrarySubmitModal extends Modal {

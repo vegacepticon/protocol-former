@@ -41,7 +41,7 @@ type FetchResult<T> =
   | { status: 'unavailable'; reason: string };
 
 async fetchRelease(id: string, version: string): Promise<FetchResult<Bundle>> {
-  if (this.baseUrl === '') return { status: 'unavailable', reason: 'not configured' };
+  if (this.baseUrls.length === 0) return { status: 'unavailable', reason: 'not configured' };
   try {
     const response = await this.requestUrl({ url: this.url(id, version), method: 'GET' });
     if (response.status === 404) return { status: 'not-found', reason: 'missing' };
@@ -79,7 +79,7 @@ if (relative === null) return { status: 'failed', reason: 'unsafe path' };
 const verified = await verifyIntegrity(content, expectedSha256);
 // verified === true proves bytes match the manifest, not publisher identity.
 ```
-Install planning validates closure, `.md` content, paths, hashes, parser output, and staged graph references before final writes. Registry deployment is deferred (`DEFAULT_REGISTRY_URL === ''`); signatures/publisher authentication are also deferred.
+Install planning validates closure, `.md` content, paths, hashes, parser output, and staged graph references before final writes. Registry endpoints are bundled in `REGISTRY_URLS` (custom domain first, `pages.dev` mirror second); an explicit settings override replaces the whole list, and an invalid/non-HTTPS override yields no endpoints. Signatures/publisher authentication remain deferred.
 
 ## Architectural Boundaries
 - Preserve one global install lock across planning, journal, commit, rollback, recovery, and migration.

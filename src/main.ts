@@ -594,7 +594,7 @@ export default class RadiProtocolPlugin extends Plugin {
   }
 
   /**
-   * Phase 54: "Run protocol in inline" command callback.
+   * Phase 54: "Run protocol" command callback.
    *
    * Flow:
    *   1. D9 guard — check active file is a markdown note.

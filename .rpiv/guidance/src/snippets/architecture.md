@@ -10,7 +10,7 @@
 - **Obsidian**: injected `App`, `Vault`, `TFile`, and `FileManager` at the effectful boundary.
 
 ## Consumers
-`main.ts` constructs the service; snippet manager/editor/pickers and the inline runner consume it. Library package paths reuse pure slug/path behavior. Reference sync is owned by SnippetService after every file/folder path change; views only reconcile their selected/expanded paths.
+`main.ts` constructs the service; snippet manager/editor/pickers and the runner consume it. Library package paths reuse pure slug/path behavior. Reference sync is owned by SnippetService after every file/folder path change; views only reconcile their selected/expanded paths.
 
 ## Module Structure
 ```

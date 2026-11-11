@@ -1,7 +1,7 @@
 # Runner Render Sub-Layer Architecture
 
 ## Responsibility
-State-specific DOM projections between the pure runner and `InlineRunnerModal`. Render functions receive narrowed state/data and host callbacks; the host owns runner mutation, vault I/O, lifecycle, localization injection, and rerendering.
+State-specific DOM projections between the pure runner and `RunnerSessionHost`. Render functions receive narrowed state/data and host callbacks; the host owns runner mutation, vault I/O, lifecycle, localization injection, and rerendering.
 
 ## Dependencies
 - **`runner/` and `graph/`**: state variants, node labels, ordered edges, and semantic edge metadata.
@@ -10,7 +10,7 @@ State-specific DOM projections between the pure runner and `InlineRunnerModal`. 
 - **`views/SnippetTreePicker`**: one documented picker adapter exception.
 
 ## Consumers
-`InlineRunnerModal` is the direct production host for all renderers; the shared footer is currently used by the snippet picker adapter.
+`RunnerSessionHost` is the direct production host for all renderers and is shared by the floating and sidebar presentations; the shared footer is currently used by the snippet picker adapter.
 
 ## Module Structure
 ```

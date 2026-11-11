@@ -16,7 +16,7 @@ import { SubmissionStore } from './submission-store';
 import { SubmissionClient, type SubmitHttpTransport, type StatusHttpTransport, type SubmitClientResult, type SubmissionStatusResult } from './submission-client';
 
 /** Everything needed to freeze one attempt. */
-export interface NewSubmissionInput {
+interface NewSubmissionInput {
   bundle: ReleaseBundle;
   meta: Omit<SubmissionMeta, 'requestId' | 'publicSharingConfirmed' | 'rightsConfirmed'>;
   /** Normalized registry key (e.g. DEFAULT_REGISTRY_URL or the settings override). */
@@ -249,15 +249,8 @@ export class LibrarySubmissionService {
   }
 }
 
-/** Review states a reconciled attempt can land in (§6.3 mapping). 'unavailable'
- *  is intentionally NOT here — it is a check-failure signal, not a decision. */
-export type SubmissionReviewState =
-  | 'pending'
-  | 'rejected'
-  | 'approved_pending_publish'
-  | 'published'
-  | 'superseded';
-
+/** Result of reconciling one attempt against the registry status route.
+ *  `check-failed` is a read failure, not a moderation decision. */
 export type ReconcileResult =
   | { status: 'ok'; record: SubmissionRecord; before: SubmissionTransportState; changed: boolean; remote: SubmissionStatusResult }
   | { status: 'check-failed'; record: SubmissionRecord; code: string; message: string }

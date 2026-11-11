@@ -12,13 +12,13 @@ import { guardRunnerTabClose } from './runner-tab-close-guard';
 export const SIDEBAR_RUNNER_VIEW_TYPE = 'radiprotocol-sidebar-runner';
 export const SIDEBAR_RUNNER_LAUNCH_MARKER = 'radiprotocol-sidebar-runner-launch';
 
-export interface SidebarRunnerLaunchContext {
+interface SidebarRunnerLaunchContext {
   protocolPath: string;
   targetNote: TFile;
   startNodeId?: string;
 }
 
-export type SidebarRunnerEphemeralState = Record<string, unknown> & {
+type SidebarRunnerEphemeralState = Record<string, unknown> & {
   [SIDEBAR_RUNNER_LAUNCH_MARKER]: true;
 };
 

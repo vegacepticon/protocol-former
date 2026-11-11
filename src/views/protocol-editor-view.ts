@@ -2589,7 +2589,7 @@ export class ProtocolEditorView extends ItemView {
       // deleted/reassigned) appended after the reordered live ids — stale ids are
       // filtered at render, never cleaned on write (FR-9).
       let modified = false;
-      const container = body.createDiv({ cls: 'rp-option-order-chip-host' });
+      const container = body.createDiv();
       optionOrderChipHandle = mountOptionOrderChips(container, draft, () => { modified = true; }, { t });
       textControls.push({
         key: 'optionOrder',

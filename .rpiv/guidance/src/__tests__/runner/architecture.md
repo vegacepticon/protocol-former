@@ -75,7 +75,7 @@ Round-trip all applicable snapshot fields, including `restoreStatus`/`returnToBr
 
 ## Architectural Boundaries
 - Do not import Obsidian for pure runner transition tests.
-- Do not test inline note writes in extracted render tests; put host effects in `src/__tests__/views/`.
+- Do not test runner note writes in extracted render tests; put host effects in `src/__tests__/views/`.
 - Keep compatibility `.canvas` cases separate from canonical inline graph behavior.
 
 <important if="you are adding tests for a new runner state or traversal behavior">

@@ -1,7 +1,7 @@
 # View Test Architecture
 
 ## Responsibility
-Specialized UI tests for modals, ItemViews, standalone components, inline-host orchestration, accessibility, async ownership, and structural wiring. Shared Vitest/mocking rules live in the parent test guidance.
+Specialized UI tests for modals, ItemViews, standalone components, runner-host orchestration, accessibility, async ownership, and structural wiring. Shared Vitest/mocking rules live in the parent test guidance.
 
 ## Dependencies
 - **Vitest + Node**: explicit imports; no jsdom/happy-dom assumption.
@@ -13,7 +13,8 @@ Specialized UI tests for modals, ItemViews, standalone components, inline-host o
 
 ## Module Structure
 ```
-inline-runner-modal-*.test.ts   # host state, keyboard, layout, lifecycle
+inline-runner-modal-*.test.ts   # floating host state, keyboard, layout, lifecycle
+sidebar-runner-view.test.ts      # right-sidebar session lifecycle and note binding
 protocol-editor-*.test.ts       # document mutation, geometry, overlays, accessibility
 snippet-*/folder-*.test.ts      # picker, editor/fill UI, chips, manager seams
 library-*.test.ts + folder-suggest.test.ts # library/picker UI and wiring guards

@@ -12,5 +12,3 @@ export const CSS_CLASS = {
   STP_INLINE_HOST: 'rp-stp-inline-host',
   STP_EDITOR_HOST: 'rp-stp-editor-host',
 } as const;
-
-export type CssClass = typeof CSS_CLASS[keyof typeof CSS_CLASS];

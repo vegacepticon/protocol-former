@@ -16,7 +16,7 @@ export interface OptionOrderChipItem {
   label: string;
 }
 
-export interface OptionOrderChipEditorHandle {
+interface OptionOrderChipEditorHandle {
   /** Detach event listeners and clear the container. Called on modal close. */
   destroy(): void;
 }

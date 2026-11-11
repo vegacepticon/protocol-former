@@ -1,7 +1,7 @@
 # Views Layer Architecture
 
 ## Responsibility
-`src/views/` provides Obsidian presentation and orchestration: ItemViews, Promise modals, suggestion pickers, standalone DOM components, custom editor overlays, and the plain floating inline runner host. Views consume lower services, but current editor projections and note-output orchestration are intentionally view-owned.
+`src/views/` provides Obsidian presentation and orchestration: ItemViews, Promise modals, suggestion pickers, standalone DOM components, custom editor overlays, the floating inline runner host, and the optional right-sidebar runner view. Views consume lower services, but current editor projections and note-output orchestration are intentionally view-owned.
 
 ## Dependencies
 - **Obsidian UI APIs**: `Modal`, `ItemView`, suggestion classes, `Notice`, DOM helpers, workspace/vault events.
@@ -17,6 +17,7 @@
 protocol-editor-document-owner.ts         # load/edit leases and owned resources
 *-modal.ts + *-picker.ts + folder-suggest  # Promise/suggestion UI
 inline-runner-modal.ts + inline-runner-layout.ts # plain floating host
+sidebar-runner-view.ts                    # optional right-sidebar presentation
 snippet-chip-editor.ts + option-order-chip-editor.ts + tree-renderer.ts # components
 library-* UI modules                         # catalog/install/export presentation
 ```
@@ -90,13 +91,13 @@ switch (state.status) {
   default: { const neverState: never = state; return neverState; }
 }
 ```
-The inline host intentionally owns protocol migration/read/validation, accumulator-delta note writes, child picker/fill lifecycle, and runner dispatch. The editor intentionally owns document-record projections such as defaults, edge labels, and option-order editing. `render-snippet-picker.ts` → `SnippetTreePicker` and snippet-manager → protocol ref-sync are sanctioned cross-layer exceptions.
+The runner host intentionally owns protocol migration/read/validation, accumulator-delta note writes, child picker/fill lifecycle, and runner dispatch. The editor intentionally owns document-record projections such as defaults, edge labels, and option-order editing. `render-snippet-picker.ts` → `SnippetTreePicker` and snippet-manager → protocol ref-sync are sanctioned cross-layer exceptions.
 
 ## Architectural Boundaries
 - Do not put service/network/vault construction in individual views; use plugin-owned services or explicit options.
 - Use type-only plugin/domain imports where runtime cycles are possible.
 - Guard library-managed protocol/snippet paths at every mutation surface.
-- Keep custom overlays and the plain inline host responsible for their own focus, observers, timers, and teardown.
+- Keep custom overlays and the runner hosts responsible for their own focus, observers, timers, and teardown.
 
 <important if="you are adding a new Promise-based Modal">
 ## Adding a Modal

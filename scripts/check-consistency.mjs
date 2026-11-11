@@ -112,6 +112,29 @@ if (missingInRu.length > 0) fail(`en.json keys missing from ru.json: ${missingIn
 if (missingInEn.length > 0) fail(`ru.json keys missing from en.json: ${missingInEn.join(', ')}`);
 if (missingInRu.length === 0 && missingInEn.length === 0) info(`OK: en/ru i18n key sets match (${enKeys.size} keys)`);
 
+console.log('\n▸ Check 8: documented commands');
+const mainSource = readText('src/main.ts');
+const addCommandCount = (mainSource.match(/this\.addCommand\(\{/g) ?? []).length;
+const commandMatches = [...mainSource.matchAll(/id:\s*'([^']+)',\s*\n\s*name:\s*'([^']+)'/g)];
+const commandNames = commandMatches.map((match) => match[2]);
+if (commandNames.length === 0) {
+  fail('Could not extract addCommand names from src/main.ts');
+} else if (commandNames.length !== addCommandCount) {
+  fail(`Extracted ${commandNames.length} command name(s) for ${addCommandCount} addCommand call(s); update the extractor or the command formatting`);
+} else {
+  for (const name of commandNames) {
+    if (!readme.includes(name)) fail(`README.md does not mention command "${name}"`);
+    if (!readmeRu.includes(name)) fail(`README.ru.md does not mention command "${name}"`);
+  }
+  info(`OK: ${commandNames.length} commands are mentioned in both README files`);
+}
+
+const staleDocPhrases = ['Run protocol in inline', 'does not ship with a registry endpoint'];
+for (const phrase of staleDocPhrases) {
+  if (readme.includes(phrase)) fail(`README.md contains stale phrase: "${phrase}"`);
+  if (readmeRu.includes(phrase)) fail(`README.ru.md contains stale phrase: "${phrase}"`);
+}
+
 console.log('\n═══════════════════════════════════════════════');
 if (errors.length > 0) {
   console.log(`❌ FAILED: ${errors.length} error(s), ${warnings.length} warning(s)`);

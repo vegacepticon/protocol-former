@@ -71,7 +71,7 @@ export interface RecoveryReport {
 }
 
 /** Result of the one-time slug→slug+hash migration (FR-2). Never throws. */
-export interface MigrationReport {
+interface MigrationReport {
   migrated: Array<{ packageId: string; releaseVersion: string }>;
   skipped: Array<{ packageId: string; releaseVersion: string }>;
   failed: Array<{ packageId: string; releaseVersion: string; reason: string }>;
@@ -92,7 +92,7 @@ interface ExpectedPaths {
   snipNs: string;
 }
 
-export interface LibraryInstallerOptions {
+interface LibraryInstallerOptions {
   /** Injectable journal IO (tests pass a stub; production constructs one). */
   journalIO?: TransactionJournalIO;
   /** Injectable translator (defaults to defaultT for pure-test sites). */

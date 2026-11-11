@@ -92,7 +92,7 @@ Serialized undo entries retain `restoreStatus` and `returnToBranchList`; do not 
 ## Architectural Boundaries
 - No Obsidian, DOM, service, or view imports in the core runner.
 - Runner errors are terminal until `start()` or `restoreFrom()`; wrong-state calls are normally no-ops.
-- Runner history changes memory only; the inline host owns note persistence and does not undo prior vault writes.
+- Runner history changes memory only; the runner host owns note persistence and does not undo prior vault writes.
 - Renderer contracts live in `.rpiv/guidance/src/runner/render/architecture.md`.
 
 <important if="you are adding a new runner state or traversal behavior">
@@ -100,7 +100,7 @@ Serialized undo entries retain `restoreStatus` and `returnToBranchList`; do not 
 1. Add the status literal and state interface/union member.
 2. Add reset/transition logic with phase guards and undo-before-mutate.
 3. Update `getState()` and both serialization/restoration unions if resumable.
-4. Add a renderer and exhaustive `InlineRunnerModal` dispatch; update the two-zone state list when needed.
+4. Add a renderer and exhaustive `RunnerSessionHost` dispatch; update the two-zone state list when needed.
 5. Add focused transition, undo/redo, JSON round-trip, renderer, and host integration tests.
 </important>
 

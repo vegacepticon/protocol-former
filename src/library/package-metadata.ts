@@ -3,7 +3,7 @@
 // category taxonomy (checkbox list in the submit modal; ids are stable API
 // values, labels are localized via i18n keys `library.category.<id>`), and
 // automatic package metadata derivation (packageId from the protocol title,
-// next release version from settings bookkeeping, export file name).
+// next release version from settings bookkeeping).
 // Zero Obsidian imports — fully unit-testable.
 
 import { slugifyLabel } from '../snippets/snippet-model';
@@ -50,11 +50,6 @@ export function nextReleaseVersion(previous: string | undefined): string {
   const parsed = previous === undefined ? null : parseSemver(previous);
   if (parsed === null) return '1.0.0';
   return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
-}
-
-/** Export file name: `<packageId>-<version>.json` (both slug-safe). */
-export function exportFileName(packageId: string, version: string): string {
-  return `${slugifyLabel(packageId)}-${slugifyLabel(version)}.json`;
 }
 
 /** Stable unique suffix for generated package ids: 8 hex chars from the SHA-256

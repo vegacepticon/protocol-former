@@ -28,7 +28,7 @@ export function renderSnippetFillLoading(zone: HTMLElement): void {
   });
 }
 
-export interface SnippetFillNotFoundOptions {
+interface SnippetFillNotFoundOptions {
   /** Optional trailing copy appended to the base "Snippet '{id}' not found." line.
    *  Legacy hosts may pass the " The snippet may have been deleted. Use
    *  step-back to continue." trailer; inline modal omits it. */

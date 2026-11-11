@@ -372,7 +372,7 @@ export function createSnippetFillInModalMock(): Record<string, unknown> {
   return { SnippetFillInModal, __fillModalInstances: fillModalInstances };
 }
 
-export interface PickerMockInstance {
+interface PickerMockInstance {
   options: Record<string, unknown>;
   mounted: boolean;
   unmounted: boolean;

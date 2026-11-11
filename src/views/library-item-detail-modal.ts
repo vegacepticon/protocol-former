@@ -16,7 +16,7 @@ import type RadiProtocolPlugin from '../main';
 import type { CatalogEntry, PackageManifest } from '../library/library-model';
 import type { ReleaseManifestResult } from '../library/library-service';
 
-export type LibraryItemDetailResult =
+type LibraryItemDetailResult =
   | { install: true; packageId: string; version: string }
   | { install: false };
 

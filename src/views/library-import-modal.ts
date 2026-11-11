@@ -9,7 +9,7 @@ import type RadiProtocolPlugin from '../main';
 import type { LibraryInstallResult } from '../library/library-service';
 import { isReleaseResponse } from '../library/registry-model';
 
-export type LibraryImportResult = { kind: 'dismissed' } | { kind: 'done' };
+type LibraryImportResult = { kind: 'dismissed' } | { kind: 'done' };
 
 export class LibraryImportModal extends Modal {
   readonly result: Promise<LibraryImportResult>;

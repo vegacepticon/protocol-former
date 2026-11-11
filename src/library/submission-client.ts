@@ -34,7 +34,7 @@ export type StatusHttpTransport = (url: string) => Promise<{ status: number; bod
 
 /** Production status transport over Obsidian's requestUrl. STATIC import (same
  *  esbuild constraint as requestUrlSubmitTransport). */
-export const requestUrlStatusTransport: StatusHttpTransport = async (url) => {
+const requestUrlStatusTransport: StatusHttpTransport = async (url) => {
   const res = await requestUrl({ url, method: 'GET' });
   return { status: res.status, bodyText: res.text };
 };

@@ -15,7 +15,7 @@ import { App, Modal } from 'obsidian';
 import type RadiProtocolPlugin from '../main';
 import type { LibraryInstallResult } from '../library/library-service';
 
-export type LibraryInstallProgressResult =
+type LibraryInstallProgressResult =
   | { done: true; result: LibraryInstallResult }
   | { done: false };
 

@@ -17,7 +17,7 @@ import { DEFAULT_REGISTRY_URL } from '../library/registry-client';
 import { LibrarySubmitModal } from './library-submit-modal';
 import { derivePackageId, nextReleaseVersion, submissionBindingKey, stableIdSuffix, resolveSubmissionIdentity } from '../library/package-metadata';
 
-export type LibraryExportResult =
+type LibraryExportResult =
   | { exported: true; path: string }
   | { exported: false };
 

@@ -10,7 +10,7 @@
 //   - Outer chrome divergence: hosts decide whether to render whole-view or
 //     zone-local error panels. InlineRunnerModal renders inside `.rp-error-panel`.
 
-export interface ErrorListOptions {
+interface ErrorListOptions {
   /** Optional class for the "Protocol error" title paragraph. When omitted,
    *  the title uses the default no-class shape; inline modal passes 'rp-error-title'. */
   titleClass?: string;

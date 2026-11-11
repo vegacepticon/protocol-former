@@ -4,7 +4,7 @@
 import en from './locales/en.json';
 import ru from './locales/ru.json';
 
-export type Locale = 'en' | 'ru';
+type Locale = 'en' | 'ru';
 
 const LOCALE_MAP: Record<Locale, Record<string, unknown>> = {
   en: en as Record<string, unknown>,

@@ -28,7 +28,7 @@ import {
 import { WriteMutex } from '../utils/write-mutex';
 
 /** Query for catalog filtering. */
-export interface CatalogQuery {
+interface CatalogQuery {
   /** Free-text query matched against title/description/author/categories (case-insensitive). */
   query?: string;
   /** Category filter (exact match against entry.categories). */
@@ -75,7 +75,7 @@ export type LibraryInstallResult =
 export type LibraryServiceSettings = LibraryInstallerSettings;
 
 /** Metadata for building a local package (FR-5). */
-export interface PackageBuildMeta {
+interface PackageBuildMeta {
   packageId: string;
   releaseVersion: string;
   author?: { displayName: string };

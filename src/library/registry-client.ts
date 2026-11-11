@@ -14,24 +14,19 @@ import {
 import { isCatalogResponse, isReleaseResponse, type ReleaseFetchResult, type ReleaseManifestFetchResult } from './registry-model';
 
 /**
- * Bundled authoritative production endpoint. EMPTY until the official registry
- * domain is provisioned (D6) — the client returns an explicit "catalog
- * unavailable" state when no endpoint is configured, never a throw. Do NOT
- * hard-code an unprovisioned domain.
+ * Bundled registry endpoints, tried in order. The custom domain is primary
+ * (*.pages.dev is ISP-blocked in some regions, e.g. RU); the pages.dev origin
+ * remains a working alias everywhere else. An explicit settings override
+ * (libraryRegistryUrl) replaces the whole list.
  */
-/** Bundled registry endpoints, tried in order. The custom domain is primary
- *  (*.pages.dev is ISP-blocked in some regions, e.g. RU); the pages.dev origin
- *  remains a working alias everywhere else. An explicit settings override
- *  (libraryRegistryUrl) replaces the whole list. */
 export const REGISTRY_URLS = [
   'https://library.radiprotocol.pro',
   'https://radiprotocol.pages.dev',
 ] as const;
 
-/** Bundled default registry endpoint (the production Community Library). Empty string
- *  would ship the plugin with "catalog unavailable" out of the box; the production
- *  registry is now embedded. Users can still override it in settings
- *  (libraryRegistryUrl) for a self-hosted/alternative registry. */
+/** Bundled default registry endpoint (the production Community Library).
+ *  Users can override it in settings (libraryRegistryUrl) for a
+ *  self-hosted/alternative registry. */
 export const DEFAULT_REGISTRY_URL: string = REGISTRY_URLS[0];
 
 /** Extract a message from an unknown rejection WITHOUT ever throwing. Captures
@@ -49,10 +44,11 @@ function safeErrorMessage(e: unknown): string {
   }
 }
 
-export interface RegistryClientOptions {
+interface RegistryClientOptions {
   /** Injectable network transport (D2). Defaults to the real Obsidian requestUrl. */
   requestUrl?: typeof obsidianRequestUrl;
-  /** Base URL of the registry. Empty/undefined → DEFAULT_REGISTRY_URL → unavailable. */
+  /** Base URL of the registry. Empty/undefined → bundled mirror list;
+   *  an invalid/non-HTTPS override yields no endpoints. */
   baseUrl?: string;
   /** Require https: scheme in production. Defaults true. */
   httpsOnly?: boolean;
