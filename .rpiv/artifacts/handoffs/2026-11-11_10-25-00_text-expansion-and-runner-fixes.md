@@ -91,6 +91,31 @@ gh release view X.Y.Z --json assets
 pinned to those exact versions; `npm ci` was verified locally after pinning. If CM6 is ever bumped,
 pin to whatever the current `obsidian` package declares and re-run `npm ci` before tagging.
 
+## Obsidian 1.15.0 compatibility (checked 2026-11-11)
+
+The user runs Obsidian **1.15.0 Desktop** (early access, released 2026-10-22). The local CI machine has
+1.14.4-2, so this was a static check against the changelog plus a source audit, not a runtime test.
+
+1.15.0 developer-facing changes and whether they touch RadiProtocol:
+
+- Closing formatting tokens gained `formatting-*-end` syntax-tree node names (e.g. inline code now
+  `formatting_formatting-code_formatting-code-end_inline-code`). Plugins matching full node names are
+  affected — **we do not**: no `syntaxTree` usage anywhere in `src/`.
+- `prepareFuzzySearch` / `prepareSimpleSearch` now ignore accents — **not used** by RadiProtocol
+  (custom pickers do their own filtering).
+- Mermaid replaced by Pele, `PIXI` now lazy-loaded — **not used**.
+- Community plugins load faster at start-up; no API change.
+
+Editor integration is limited to the public `registerEditorExtension` (text expansion), which is
+unchanged. `minAppVersion` stays `1.5.7`, so 1.15.0 installs fine. Typings are `obsidian@1.12.3` while
+the runtime is 1.15.0; that is acceptable because only long-stable APIs are used. Bumping the typed
+dependency to the latest published `obsidian` (1.14.4, peers `@codemirror/state` 6.7.6 /
+`@codemirror/view` 6.43.13) is optional and would require re-pinning CM6 + `npm ci` verification —
+no functional gain found, so it was not done.
+
+If a 1.15-specific problem appears, the most likely area is the CM6 text-expansion extension; ask for
+the developer-console error before changing anything.
+
 ## Known limits and backlog
 
 1. **Editor extension is not covered by automated tests.** The pure plans are tested; the CM adapter is
