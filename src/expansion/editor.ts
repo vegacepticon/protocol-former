@@ -73,10 +73,13 @@ export function textExpansionExtension(): Extension {
     EditorView.inputHandler.of((view, from, to, text) => {
       const rules = autoRulesOrNull();
       if (rules === null) return false;
-      if (view.composing) return false;
-      // Only direct insertion at a collapsed cursor; pastes and programmatic
-      // edits keep their text (Substitutions has the same restriction).
+      // `compositionStarted`, not `composing`: it is also true on the first
+      // composition event, and the input handler must never rewrite a preedit.
+      if (view.compositionStarted) return false;
+      // Only direct insertion at a single collapsed cursor; pastes,
+      // programmatic edits, and multi-cursor input keep their text.
       if (from !== to || text.length === 0) return false;
+      if (view.state.selection.ranges.length > 1) return false;
 
       const change = planAutoInsert(
         textBefore(view, from, rules),

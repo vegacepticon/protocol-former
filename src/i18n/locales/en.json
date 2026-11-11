@@ -18,7 +18,7 @@
     "enableRunnerDraftDesc": "Show a session-only conclusion scratchpad below the answers. Edit and reorder items, then insert them together at the target note cursor.",
     "expansionHeading": "Text expansion",
     "textExpansionEnabled": "Enable text expansion",
-    "textExpansionEnabledDesc": "Replace typed triggers in runner fields, the conclusion draft, snippet fill-in fields, and the note editor. No other plugin is required.",
+    "textExpansionEnabledDesc": "Replace typed triggers in runner fields, the conclusion draft, snippet fill-in fields, and the note editor.",
     "textExpansionInEditor": "Expand in the note editor",
     "textExpansionInEditorDesc": "Also run expansion in the Markdown editor. Turn off to keep it limited to RadiProtocol fields.",
     "language": "Language",
@@ -72,7 +72,7 @@
     "textExpansionPhraseModeToHotkey": "Auto-replacement. Click to switch to hotkey insertion.",
     "textExpansionPhraseDelete": "Delete phrase",
     "textExpansionPhrasesInvalid": "{count} phrase(s) have an empty or multi-word trigger and will be ignored.",
-    "textExpansionHotkeyHint": "Hotkey phrases wait for the command \"Insert phrase from trigger\". Type the trigger, then run the command; assign its hotkey in Settings → Hotkeys.",
+    "textExpansionHotkeyHint": "The command \"Insert phrase from trigger\" replaces the word before the cursor. Hotkey phrases never expand while typing: type the trigger, then run the command. Assign its hotkey in Settings → Hotkeys.",
     "back": "Back",
     "textExpansionPhrasesDisabled": "Text expansion is off. Phrases are saved, but nothing will expand until you enable text expansion on the main settings page."
   },
@@ -561,7 +561,7 @@
   },
   "expansion": {
     "disabled": "Text expansion is disabled in RadiProtocol settings.",
-    "hotkeyNoMatch": "No hotkey phrase matches the word before the cursor.",
+    "hotkeyNoMatch": "No phrase matches the word before the cursor.",
     "editorDisabled": "Expansion in the note editor is disabled in RadiProtocol settings."
   }
 }

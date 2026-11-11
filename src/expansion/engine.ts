@@ -93,7 +93,12 @@ export function planAutoExpansion(
 /**
  * Auto-mode plan for text the user is about to insert (CodeMirror input
  * handler). `before` excludes the typed text; `insert` is what is about to be
- * inserted at `from`. The resulting change always spans up to `from + insert`.
+ * inserted at `from`, and the document at `from` does not contain it yet.
+ *
+ * The returned change therefore uses current-document coordinates: the part of
+ * the trigger that is already typed replaces itself, and the incoming text is
+ * consumed by the replacement instead of being inserted first. Referring to
+ * `from + insert.length` would exceed the document and throw.
  */
 export function planAutoInsert(
   before: string,
@@ -101,23 +106,45 @@ export function planAutoInsert(
   insert: string,
   rules: ExpansionRule[],
 ): ExpansionChange | null {
-  const projected = before + insert;
-  const match = matchAuto(projected, rules);
+  const match = matchAuto(before + insert, rules);
   if (match === null) return null;
-  const start = from + insert.length - match.triggerLength;
-  return { from: start, to: from + insert.length, insert: match.text, caret: start + match.caret };
+
+  // A normal keystroke contributes the tail of the trigger; the head is already
+  // in the document.
+  const alreadyInDocument = match.triggerLength - insert.length;
+  if (alreadyInDocument >= 0) {
+    const start = from - alreadyInDocument;
+    if (start < 0) return null;
+    return { from: start, to: from, insert: match.text, caret: start + match.caret };
+  }
+
+  // One input event can commit the whole trigger (IME) or more text in front of
+  // it. Keep that extra text and append the replacement.
+  const keep = insert.slice(0, insert.length - match.triggerLength);
+  return {
+    from,
+    to: from,
+    insert: keep + match.text,
+    caret: from + keep.length + match.caret,
+  };
 }
 
-/** Hotkey-mode plan: the word before `caret` is replaced. */
+/**
+ * Hotkey-mode plan: the word before `caret` is replaced.
+ *
+ * Trailing spaces or tabs between the word and the caret are ignored and left
+ * in place, so a trigger typed together with a habitual space still matches.
+ */
 export function planWordExpansion(
   before: string,
   caret: number,
   rules: ExpansionRule[],
 ): ExpansionChange | null {
-  const word = wordBeforeCaret(before);
+  const head = before.slice(0, caret).replace(/[ \t]+$/u, '');
+  const word = wordBeforeCaret(head);
   if (word === '') return null;
   const match = matchWord(word, rules);
   if (match === null) return null;
-  const from = caret - word.length;
-  return { from, to: caret, insert: match.text, caret: from + match.caret };
+  const from = head.length - word.length;
+  return { from, to: head.length, insert: match.text, caret: from + match.caret };
 }

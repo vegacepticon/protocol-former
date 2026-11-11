@@ -345,6 +345,7 @@ export default class RadiProtocolPlugin extends Plugin {
       inEditor: this.settings.textExpansionInEditor !== false,
       autoRules: phrases.filter(isAutoRule),
       hotkeyRules: phrases.filter(isHotkeyRule),
+      allRules: phrases,
     });
   }
 
@@ -382,10 +383,11 @@ export default class RadiProtocolPlugin extends Plugin {
   }
 
   /**
-   * `Insert phrase from trigger`: replaces the word before the caret with a
-   * hotkey-mode phrase. Only fields RadiProtocol wired for expansion are
-   * touched; any other text field is left alone so the command cannot rewrite
-   * a search box or another plugin's input.
+   * `Insert phrase from trigger`: replaces the word before the caret with the
+   * phrase whose trigger matches it. Any phrase qualifies — a hotkey-mode
+   * phrase simply waits for this command instead of firing while typing — and
+   * the command only touches fields RadiProtocol wired for expansion plus the
+   * note editor, so it cannot rewrite a search box or another plugin's input.
    */
   private insertPhraseFromTrigger(): void {
     const config = getTextExpansionConfig();
@@ -394,10 +396,27 @@ export default class RadiProtocolPlugin extends Plugin {
       return;
     }
 
+    // The note editor's content element is contenteditable, so it also looks
+    // like a generic text-entry target. Resolve the editor first; otherwise
+    // every editor chord falls into the foreign-text-field branch below and
+    // reports a no-match without ever trying the editor path.
+    const editor = this.app.workspace.activeEditor?.editor
+      ?? this.getActiveMarkdownView()?.editor
+      ?? null;
+    if (editor !== null && editor.hasFocus()) {
+      if (!config.inEditor) {
+        new Notice(this.i18n.t('expansion.editorDisabled'));
+        return;
+      }
+      if (expandHotkeyPhraseInEditor(editor, config.allRules)) return;
+      new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
+      return;
+    }
+
     const active = typeof document === 'undefined' ? null : document.activeElement;
     if (isTextEntryTarget(active as HTMLElement | null)) {
       if (active !== null && active !== undefined && isTextExpansionTextarea(active)) {
-        if (expandHotkeyPhrase(active, config.hotkeyRules)) return;
+        if (expandHotkeyPhrase(active, config.allRules)) return;
       }
       new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
       return;
@@ -412,16 +431,6 @@ export default class RadiProtocolPlugin extends Plugin {
       return;
     }
 
-    const editor = this.app.workspace.activeEditor?.editor
-      ?? this.getActiveMarkdownView()?.editor
-      ?? null;
-    if (editor !== null) {
-      if (!config.inEditor) {
-        new Notice(this.i18n.t('expansion.editorDisabled'));
-        return;
-      }
-      if (expandHotkeyPhraseInEditor(editor, config.hotkeyRules)) return;
-    }
     new Notice(this.i18n.t('expansion.hotkeyNoMatch'));
   }
 

@@ -126,7 +126,7 @@ RadiProtocol can insert longer text from a short trigger, so a separate Substitu
 Enable it in **Settings → RadiProtocol → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The icon button switches the row between two modes:
 
 - **Auto-replacement** — the trigger is replaced as soon as it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
-- **Hotkey insertion** — the typed word stays as it is until you run **Insert phrase from trigger** from the command palette or its hotkey. Type the trigger, press the chord, and the word is replaced. Assign the chord in **Settings → Hotkeys**; no default is set.
+- **Hotkey insertion** — the typed word stays as it is until you run **Insert phrase from trigger** from the command palette or its hotkey. Type the trigger, press the chord, and the word is replaced. The command matches any phrase, including auto-replacement ones; assign the chord in **Settings → Hotkeys** (no default is set).
 
 In a replacement, `\n`, `\t`, `\b` and `\\` are character escapes, `$nl$` inserts a line break, and `$end$` marks where the caret lands after expansion (default: the end). Triggers cannot contain spaces; a row with an empty or multi-word trigger is marked invalid and ignored.
 

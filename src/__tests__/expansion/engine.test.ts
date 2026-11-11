@@ -42,13 +42,44 @@ describe('expansion engine — auto mode', () => {
     });
   });
 
-  it('plans against the projected text for the CodeMirror input handler', () => {
+  it('plans a single transaction in the pre-insert document', () => {
     // Typing the final `>` at position 8; the doc still holds "hello --".
+    // The transaction may not reference position 9: it does not exist yet.
     expect(planAutoInsert('hello --', 8, '>', RULES)).toEqual({
       from: 6,
-      to: 9,
+      to: 8,
       insert: '→',
       caret: 7,
+    });
+  });
+
+  it('plans a whole trigger that arrives in one input event', () => {
+    // IME commits can deliver several characters at once; the trigger begins
+    // exactly at the caret, so nothing before it is removed.
+    expect(planAutoInsert('hello ', 6, '-->', RULES)).toEqual({
+      from: 6,
+      to: 6,
+      insert: '→',
+      caret: 7,
+    });
+  });
+
+  it('keeps text that arrives in front of the trigger', () => {
+    expect(planAutoInsert('hello ', 6, 'x-->', RULES)).toEqual({
+      from: 6,
+      to: 6,
+      insert: 'x→',
+      caret: 8,
+    });
+  });
+
+  it('keeps the caret by offset inside a multi-line replacement', () => {
+    // ";sig" resolves to "Roman\nDev" with the default caret at the end.
+    expect(planAutoInsert('x ;si', 5, 'g', RULES)).toEqual({
+      from: 2,
+      to: 5,
+      insert: 'Roman\nDev',
+      caret: 11,
     });
   });
 
@@ -75,9 +106,31 @@ describe('expansion engine — delimiter mode', () => {
     expect(matchWord(';sigx', RULES)).toBeNull();
   });
 
-  it('plans the word replacement without the delimiter', () => {
-    // "type ;sig" + Space: the space is consumed, so `to` is the caret.
+  it('plans the word replacement', () => {
     expect(planWordExpansion('hello ;sig', 10, RULES)).toEqual({
+      from: 6,
+      to: 10,
+      insert: 'Roman\nDev',
+      caret: 15,
+    });
+  });
+
+  it('ignores spaces and tabs between the word and the caret', () => {
+    // A trigger typed with a habitual space still matches; the space stays.
+    expect(planWordExpansion('hello ;sig \t', 12, RULES)).toEqual({
+      from: 6,
+      to: 10,
+      insert: 'Roman\nDev',
+      caret: 15,
+    });
+  });
+
+  it('does not cross a line break to reach a word', () => {
+    expect(planWordExpansion('hello ;sig\n', 11, RULES)).toBeNull();
+  });
+
+  it('does not look past the caret', () => {
+    expect(planWordExpansion('hello ;sig x', 10, RULES)).toEqual({
       from: 6,
       to: 10,
       insert: 'Roman\nDev',
