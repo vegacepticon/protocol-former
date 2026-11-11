@@ -187,6 +187,8 @@ interface MockInputEl {
   min: string;
   value: string;
   rows?: number;
+  focused: boolean;
+  focus: () => void;
   classList: Set<string>;
   addClass: (cls: string) => void;
   removeClass: (cls: string) => void;
@@ -207,10 +209,13 @@ function makeMockInputEl(): MockInputEl {
   const listeners = new Map<string, Array<(evt: MockInputEvent) => void>>();
   const classes = new Set<string>();
   const attrs = new Map<string, string>();
+  let focused = false;
   return {
     type: '',
     min: '',
     value: '',
+    get focused() { return focused; },
+    focus: () => { focused = true; },
     classList: classes,
     addClass: (cls: string) => { classes.add(cls); },
     removeClass: (cls: string) => { classes.delete(cls); },
@@ -592,7 +597,15 @@ export class Setting {
   nameEl: MockElement = makeMockEl();
   descEl: MockElement = makeMockEl();
   controlEl: MockElement = makeMockEl();
-  constructor(_containerEl: unknown) {}
+  constructor(containerEl: unknown) {
+    // Mirror Obsidian: a Setting appends its own element to the container. This
+    // makes containers queryable in tests (e.g. phrase rows during filtering).
+    const parent = containerEl as { children?: MockElement[] } | null;
+    if (parent !== null && Array.isArray(parent.children)) {
+      parent.children.push(this.settingEl);
+      this.settingEl.parentElement = parent as MockElement;
+    }
+  }
   setName(_name: string): this { return this; }
   setDesc(_desc: string): this { return this; }
   setClass(_cls: string): this { return this; }

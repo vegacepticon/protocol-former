@@ -123,7 +123,7 @@ Drafts exist **only for the current run**. They are not saved in protocol files 
 
 RadiProtocol can insert longer text from a short trigger, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
 
-Enable it in **Settings → RadiProtocol → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The icon button switches the row between two modes:
+Enable it in **Settings → RadiProtocol → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The search field at the top filters a long list by trigger or insertion; **Add phrase** adds a new row at the top. The icon button switches the row between two modes:
 
 - **Auto-replacement** — the trigger is replaced as soon as it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
 - **Hotkey insertion** — the typed word stays as it is until you run **Insert phrase from trigger** from the command palette or its hotkey. Type the trigger, press the chord, and the word is replaced. The command matches any phrase, including auto-replacement ones; assign the chord in **Settings → Hotkeys** (no default is set).

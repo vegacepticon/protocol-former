@@ -9,6 +9,7 @@ import {
   countInvalidPhrases,
   DEFAULT_TEXT_EXPANSION_PHRASES,
   isValidTrigger,
+  phraseMatchesQuery,
   type ExpansionRule,
 } from './expansion/rules';
 
@@ -94,11 +95,21 @@ export const DEFAULT_SETTINGS: RadiProtocolSettings = {
 
 type SettingsPage = 'main' | 'phrases';
 
+interface PhraseRowEntry {
+  phrase: ExpansionRule;
+  rowEl: HTMLElement;
+  triggerInputEl: HTMLInputElement;
+}
+
 export class RadiProtocolSettingsTab extends PluginSettingTab {
   private readonly plugin: RadiProtocolPlugin;
   private page: SettingsPage = 'main';
   private expansionSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private phrasesStatusEl: HTMLElement | null = null;
+  /** Search text; deleting a row re-renders and keeps it, adding a row clears it. */
+  private phraseSearchQuery = '';
+  private phraseRows: PhraseRowEntry[] = [];
+  private phraseNoMatchesEl: HTMLElement | null = null;
 
   constructor(app: App, plugin: RadiProtocolPlugin) {
     super(app, plugin);
@@ -109,6 +120,8 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     this.phrasesStatusEl = null;
+    this.phraseNoMatchesEl = null;
+    this.phraseRows = [];
 
     if (this.page === 'phrases') {
       this.displayPhrasesPage();
@@ -120,6 +133,7 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
   /** Reopening the tab starts on the main page, not on a nested list. */
   hide(): void {
     this.page = 'main';
+    this.phraseSearchQuery = '';
     super.hide();
   }
 
@@ -335,6 +349,7 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
       .setIcon('arrow-left')
       .onClick(() => {
         this.page = 'main';
+        this.phraseSearchQuery = '';
         this.display();
       }));
 
@@ -357,6 +372,8 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
     const statusEl = containerEl.createEl('p', { cls: 'rp-phrase-status is-hidden' });
     this.phrasesStatusEl = statusEl;
 
+    this.renderPhrasesToolbar(containerEl);
+
     const listEl = containerEl.createDiv({ cls: 'rp-phrase-list' });
     const phrases = this.getPhrases();
     if (phrases.length === 0) {
@@ -365,19 +382,14 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
         cls: 'rp-phrase-empty',
       });
     }
-    phrases.forEach((phrase, index) => this.renderPhraseRow(listEl, phrase, index));
+    phrases.forEach((phrase, index) => {
+      this.phraseRows.push(this.renderPhraseRow(listEl, phrase, index));
+    });
+    this.phraseNoMatchesEl = listEl.createEl('p', {
+      cls: 'rp-phrase-no-matches is-hidden',
+    });
+    this.applyPhraseFilter();
     this.updatePhrasesStatus(statusEl, phrases);
-
-    const addRow = new Setting(containerEl);
-    addRow.settingEl.addClass('rp-phrase-add-row');
-    addRow.addButton(button => button
-      .setButtonText(t('settings.textExpansionAddPhrase'))
-      .setIcon('plus')
-      .onClick(() => {
-        this.getPhrases().push({ trigger: '', replacement: '', mode: 'auto' });
-        this.persistPhrases();
-        this.display();
-      }));
 
     containerEl.createEl('p', {
       text: t('settings.textExpansionHotkeyHint'),
@@ -385,12 +397,74 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
     });
   }
 
-  private renderPhraseRow(parent: HTMLElement, phrase: ExpansionRule, index: number): void {
+  /** Search and add live above the list so a long phrase list needs no scrolling. */
+  private renderPhrasesToolbar(containerEl: HTMLElement): void {
+    const t = (key: string, params?: Record<string, string>) => this.plugin.i18n.t(key, params);
+    const toolbar = new Setting(containerEl);
+    toolbar.settingEl.addClass('rp-phrase-toolbar');
+
+    toolbar.addText(text => {
+      text.inputEl.type = 'search';
+      text.inputEl.addClass('rp-phrase-search');
+      text.inputEl.setAttribute('aria-label', t('settings.textExpansionPhraseSearch'));
+      text
+        .setPlaceholder(t('settings.textExpansionPhraseSearchPlaceholder'))
+        .setValue(this.phraseSearchQuery)
+        .onChange((value) => {
+          this.phraseSearchQuery = value;
+          this.applyPhraseFilter();
+        });
+    });
+
+    toolbar.addButton(button => button
+      .setCta()
+      .setButtonText(t('settings.textExpansionAddPhrase'))
+      .onClick(() => this.addPhrase()));
+  }
+
+  /** Adds a blank row at the top, where the search/add toolbar is, and focuses it. */
+  private addPhrase(): void {
+    this.getPhrases().unshift({ trigger: '', replacement: '', mode: 'auto' });
+    this.phraseSearchQuery = '';
+    this.persistPhrases();
+    this.display();
+    this.phraseRows[0]?.triggerInputEl.focus();
+  }
+
+  /** Toggles row visibility in place, so typing in the search field keeps focus. */
+  private applyPhraseFilter(): void {
+    let visible = 0;
+    for (const row of this.phraseRows) {
+      const matches = phraseMatchesQuery(row.phrase, this.phraseSearchQuery);
+      row.rowEl.toggleClass('is-hidden', !matches);
+      if (matches) visible += 1;
+    }
+
+    const noMatchesEl = this.phraseNoMatchesEl;
+    if (noMatchesEl === null) return;
+    const show = this.phraseSearchQuery.trim() !== ''
+      && this.phraseRows.length > 0
+      && visible === 0;
+    noMatchesEl.toggleClass('is-hidden', !show);
+    noMatchesEl.setText(show
+      ? this.plugin.i18n.t('settings.textExpansionPhrasesNoMatches', {
+        query: this.phraseSearchQuery.trim(),
+      })
+      : '');
+  }
+
+  private renderPhraseRow(
+    parent: HTMLElement,
+    phrase: ExpansionRule,
+    index: number,
+  ): PhraseRowEntry {
     const t = (key: string, params?: Record<string, string>) => this.plugin.i18n.t(key, params);
     const setting = new Setting(parent);
     setting.settingEl.addClass('rp-phrase-row');
+    let triggerInputEl: HTMLInputElement | null = null;
 
     setting.addText(text => {
+      triggerInputEl = text.inputEl;
       text.inputEl.addClass('rp-phrase-trigger');
       text.inputEl.setAttribute('aria-label', t('settings.textExpansionPhraseTrigger'));
       text.inputEl.setAttribute('data-rp-phrase-index', String(index));
@@ -449,8 +523,15 @@ export class RadiProtocolSettingsTab extends PluginSettingTab {
         const at = phrases.indexOf(phrase);
         if (at >= 0) phrases.splice(at, 1);
         this.persistPhrases();
+        // Keep the current filter: deleting a match should not reset the search.
         this.display();
       }));
+
+    return {
+      phrase,
+      rowEl: setting.settingEl,
+      triggerInputEl: triggerInputEl!,
+    };
   }
 
   /** Show how many rows are invalid; silently ignoring a typo looks like a broken trigger. */

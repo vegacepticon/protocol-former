@@ -242,13 +242,14 @@ describe('Settings text expansion', () => {
 });
 
 describe('Settings phrase page', () => {
-  it('opens the nested page with one trigger and one insertion field per phrase', () => {
+  it('opens the nested page with a search field and one trigger/insertion pair per phrase', () => {
     const { textComponents } = openPhrasesPage();
     const phrases = DEFAULT_SETTINGS.textExpansionPhrases ?? [];
 
-    expect(textComponents).toHaveLength(phrases.length * 2);
-    expect(textComponents[0]!.inputEl.value).toBe(phrases[0]!.trigger);
-    expect(textComponents[1]!.inputEl.value).toBe(phrases[0]!.replacement);
+    expect(textComponents).toHaveLength(phrases.length * 2 + 1);
+    expect(textComponents[0]!.inputEl.classList.has('rp-phrase-search')).toBe(true);
+    expect(textComponents[1]!.inputEl.value).toBe(phrases[0]!.trigger);
+    expect(textComponents[2]!.inputEl.value).toBe(phrases[0]!.replacement);
   });
 
   it('returns to the main page with the back button', () => {
@@ -267,7 +268,7 @@ describe('Settings phrase page', () => {
     vi.useFakeTimers();
     try {
       const { plugin, textComponents } = openPhrasesPage();
-      const trigger = textComponents[0]!.inputEl as unknown as {
+      const trigger = textComponents[1]!.inputEl as unknown as {
         value: string;
         dispatchEvent: (event: { type: string }) => boolean;
       };
@@ -297,25 +298,95 @@ describe('Settings phrase page', () => {
     expect(extraButtonComponents[0]!.tooltip).toBe('settings.textExpansionPhraseModeToAuto');
   });
 
-  it('adds and deletes phrase rows', () => {
+  it('adds a phrase at the top, clears the filter, and focuses its trigger field', () => {
     const rendered = openPhrasesPage();
+    const initial = rendered.plugin.settings.textExpansionPhrases!.length;
+    const search = rendered.textComponents[0]!.inputEl as unknown as {
+      value: string;
+      dispatchEvent: (event: { type: string }) => boolean;
+    };
+
+    search.value = 'no such phrase';
+    search.dispatchEvent({ type: 'input' });
+
     const add = rendered.buttonComponents.find(
       (button) => button.text === 'settings.textExpansionAddPhrase',
     );
     expect(add).toBeDefined();
-
     add!.click!();
-    expect(rendered.plugin.settings.textExpansionPhrases).toHaveLength(
-      (DEFAULT_SETTINGS.textExpansionPhrases ?? []).length + 1,
-    );
+
+    expect(rendered.plugin.settings.textExpansionPhrases).toHaveLength(initial + 1);
+    expect(rendered.plugin.settings.textExpansionPhrases![0]).toEqual({
+      trigger: '',
+      replacement: '',
+      mode: 'auto',
+    });
     expect(rendered.plugin.saveSettingsCalls).toBe(1);
 
+    // The re-render appends a fresh search field (index 0) and the new blank row.
+    const renderedPage = rendered.textComponents.slice(-((initial + 1) * 2 + 1));
+    expect(renderedPage[0]!.inputEl.value).toBe('');
+    expect(renderedPage[1]!.inputEl.value).toBe('');
+    expect(renderedPage[1]!.inputEl.focused).toBe(true);
+
     // Newest page: first row's delete button.
-    const deletes = __getMockExtraButtonComponents().filter((button) => button.icon === 'trash');
+    const newestButtons = __getMockExtraButtonComponents().slice(-((initial + 1) * 2));
+    const deletes = newestButtons.filter((button) => button.icon === 'trash');
     deletes[0]!.click!();
-    expect(rendered.plugin.settings.textExpansionPhrases).toHaveLength(
-      (DEFAULT_SETTINGS.textExpansionPhrases ?? []).length,
+    expect(rendered.plugin.settings.textExpansionPhrases).toHaveLength(initial);
+  });
+
+  it('filters rows by trigger or insertion and reports no matches', () => {
+    const phrases: ExpansionRule[] = [
+      { trigger: ';a', replacement: 'Alpha', mode: 'auto' },
+      { trigger: ';b', replacement: 'Beta', mode: 'auto' },
+      { trigger: ';c', replacement: 'Gamma', mode: 'auto' },
+    ];
+    const { containerEl, textComponents } = openPhrasesPage({ textExpansionPhrases: phrases });
+    const search = textComponents[0]!.inputEl as unknown as {
+      value: string;
+      dispatchEvent: (event: { type: string }) => boolean;
+    };
+    const rows = Array.from(containerEl.querySelectorAll('.rp-phrase-row'));
+    const noMatches = containerEl.querySelector('.rp-phrase-no-matches');
+    const hiddenRows = (): boolean[] => rows.map(
+      (row) => (row.classList as unknown as Set<string>).has('is-hidden'),
     );
+    const noMatchesHidden = (): boolean => (
+      noMatches!.classList as unknown as Set<string>
+    ).has('is-hidden');
+    expect(rows).toHaveLength(3);
+    expect(noMatches).not.toBeNull();
+
+    search.value = 'BETA';
+    search.dispatchEvent({ type: 'input' });
+    expect(hiddenRows()).toEqual([true, false, true]);
+    expect(noMatchesHidden()).toBe(true);
+
+    search.value = ';c';
+    search.dispatchEvent({ type: 'input' });
+    expect(hiddenRows()).toEqual([true, true, false]);
+
+    search.value = 'missing';
+    search.dispatchEvent({ type: 'input' });
+    expect(hiddenRows()).toEqual([true, true, true]);
+    expect(noMatchesHidden()).toBe(false);
+
+    search.value = '';
+    search.dispatchEvent({ type: 'input' });
+    expect(hiddenRows()).toEqual([false, false, false]);
+    expect(noMatchesHidden()).toBe(true);
+  });
+
+  it('keeps the search and add controls above the phrase list', () => {
+    const { containerEl } = openPhrasesPage();
+    const toolbar = containerEl.querySelector('.rp-phrase-toolbar');
+    const list = containerEl.querySelector('.rp-phrase-list');
+    const children = Array.from(containerEl.children);
+
+    expect(toolbar).not.toBeNull();
+    expect(list).not.toBeNull();
+    expect(children.indexOf(toolbar!)).toBeLessThan(children.indexOf(list!));
   });
 
   it('shows already stored custom phrases in the same order', () => {
@@ -325,7 +396,7 @@ describe('Settings phrase page', () => {
     ];
     const { textComponents, extraButtonComponents } = openPhrasesPage({ textExpansionPhrases: phrases });
 
-    expect(textComponents.map((component) => component.inputEl.value)).toEqual([
+    expect(textComponents.slice(1).map((component) => component.inputEl.value)).toEqual([
       ';a', 'First', ';b', 'Second',
     ]);
     expect(extraButtonComponents[0]!.icon).toBe('keyboard');

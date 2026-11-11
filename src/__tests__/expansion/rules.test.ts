@@ -5,6 +5,7 @@ import {
   isValidTrigger,
   normalizePhrases,
   parseRuleLines,
+  phraseMatchesQuery,
   phrasesFromLegacyRules,
   resolveExpansion,
 } from '../../expansion/rules';
@@ -101,6 +102,17 @@ describe('expansion phrases — structured validation', () => {
   it('ships defaults that are valid', () => {
     expect(DEFAULT_TEXT_EXPANSION_PHRASES.length).toBeGreaterThan(0);
     expect(countInvalidPhrases(DEFAULT_TEXT_EXPANSION_PHRASES)).toBe(0);
+  });
+
+  it('searches phrases by trigger or insertion, case-insensitively', () => {
+    const phrase = { trigger: ';MRI', replacement: 'Магнитно-резонансная томография' };
+
+    expect(phraseMatchesQuery(phrase, '')).toBe(true);
+    expect(phraseMatchesQuery(phrase, '   ')).toBe(true);
+    expect(phraseMatchesQuery(phrase, 'mri')).toBe(true);
+    expect(phraseMatchesQuery(phrase, 'резонанс')).toBe(true);
+    expect(phraseMatchesQuery(phrase, 'томограф')).toBe(true);
+    expect(phraseMatchesQuery(phrase, 'mrt')).toBe(false);
   });
 });
 

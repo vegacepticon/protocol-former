@@ -91,6 +91,17 @@ export function countInvalidPhrases(phrases: ExpansionRule[]): number {
 }
 
 /**
+ * Settings-page search: a case-insensitive substring of the trigger or the
+ * replacement. A blank query matches every row.
+ */
+export function phraseMatchesQuery(phrase: ExpansionRule, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  if (needle === '') return true;
+  return phrase.trigger.toLowerCase().includes(needle)
+    || phrase.replacement.toLowerCase().includes(needle);
+}
+
+/**
  * One-way reader for the old `trigger => replacement` settings text.
  * The legacy global `delimiter` mode mapped to Space; its closest equivalent
  * in the new model is a phrase that waits for an explicit hotkey.

@@ -53,14 +53,38 @@
   min-width: 10em;
 }
 
-.rp-phrase-empty {
+.rp-phrase-empty,
+.rp-phrase-no-matches {
   margin: 0;
   color: var(--text-muted);
   font-style: italic;
 }
 
-.rp-phrase-add-row {
-  margin-top: var(--size-4-2);
+.rp-phrase-no-matches.is-hidden {
+  display: none;
+}
+
+/* Search + Add toolbar above the list: always reachable without scrolling. */
+.rp-phrase-toolbar {
+  margin-bottom: var(--size-4-2);
+}
+
+.rp-phrase-toolbar .setting-item-info {
+  display: none;
+}
+
+.rp-phrase-toolbar .setting-item-control {
+  flex: 1 1 auto;
+  gap: var(--size-4-2);
+}
+
+.rp-phrase-search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rp-phrase-row.is-hidden {
+  display: none;
 }
 
 .rp-phrase-trigger-invalid {

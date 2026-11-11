@@ -41,9 +41,13 @@ phrases needs no restart and no editor reconfiguration. Do not add a settings pa
 interfaces for this feature — the adapters are attached where elements are created.
 
 The phrase list has its own nested settings page (`settings.ts` `displayPhrasesPage()`); the main page has only
-the enable toggle, the entry button, and the editor-scope toggle. Rows are trigger/insertion text pairs with an
-icon button that flips the mode and a delete button. A row is invalid when its trigger is blank or contains
-whitespace; invalid rows are persisted (so the user can fix them) but ignored at runtime.
+the enable toggle, the entry button, and the editor-scope toggle. A search field and the **Add phrase** button
+form a toolbar above the list. The search filters rows in place (case-insensitive substring of trigger or
+insertion) by toggling a class, so typing never re-renders the page and keeps focus; `phraseMatchesQuery()` in
+`rules.ts` is the pure matcher. **Add phrase** prepends a blank row, clears the filter, re-renders, and focuses
+the new trigger input, so a long list can be extended without scrolling. Rows are trigger/insertion text pairs
+with an icon button that flips the mode and a delete button. A row is invalid when its trigger is blank or
+contains whitespace; invalid rows are persisted (so the user can fix them) but ignored at runtime.
 
 ## Migration (3.6.21)
 
