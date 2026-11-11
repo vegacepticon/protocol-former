@@ -18,7 +18,7 @@ function toHex(buf: ArrayBuffer): string {
 function subtle(): SubtleCrypto {
   const s = globalThis.crypto?.subtle;
   if (s === undefined) {
-    throw new Error('[RadiProtocol] Web Crypto subtle.digest unavailable — cannot compute SHA-256');
+    throw new Error('[Protocol Former] Web Crypto subtle.digest unavailable — cannot compute SHA-256');
   }
   return s;
 }

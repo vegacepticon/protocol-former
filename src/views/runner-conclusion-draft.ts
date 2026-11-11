@@ -96,6 +96,28 @@ export class RunnerConclusionDraft {
     this.input.focus();
   }
 
+  /**
+   * Seed the draft from the protocol's preconfigured items at session start.
+   *
+   * The preset is a starting template, not unsaved user work: it becomes the
+   * insertion baseline, so closing a session with an untouched preset does not
+   * prompt about discarding a draft and completion auto-close is not blocked.
+   * Any user edit after seeding makes the draft uninserted again. Never clobber
+   * text the user managed to type before the protocol finished loading.
+   */
+  setPresetLines(lines: readonly string[]): void {
+    if (this.destroyed) return;
+    if (this.lines.length > 0 || this.input.value.trim() !== '') return;
+    const seeded = lines
+      .map(text => text.trim())
+      .filter(text => text.length > 0);
+    if (seeded.length === 0) return;
+    this.lines = seeded.map(text => ({ text }));
+    this.renderLines();
+    this.insertedText = this.getText();
+    this.changed();
+  }
+
   hasUninsertedText(): boolean {
     const text = this.getText();
     return Boolean(text.trim()) && text !== this.insertedText;

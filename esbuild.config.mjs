@@ -63,7 +63,7 @@ const cssPlugin = {
         const combined = parts.join('\n');
         fs.writeFileSync('styles.css', combined);
       } catch (err) {
-        console.error(`[radiprotocol] CSS concat failed: ${err.message}`);
+        console.error(`[protocol-former] CSS concat failed: ${err.message}`);
       }
     });
   },
@@ -94,9 +94,9 @@ const devVaultCopyPlugin = {
         if (fs.existsSync('styles.css')) {
           fs.copyFileSync('styles.css', path.join(pluginDir, 'styles.css'));
         }
-        console.debug(`[radiprotocol] Copied to dev vault: ${pluginDir}`);
+        console.debug(`[protocol-former] Copied to dev vault: ${pluginDir}`);
       } catch (err) {
-        console.error(`[radiprotocol] Dev vault copy failed: ${err.message}`);
+        console.error(`[protocol-former] Dev vault copy failed: ${err.message}`);
       }
     });
   },

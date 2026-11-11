@@ -154,7 +154,7 @@ export class CanvasParser {
   }
 
   private parseNode(raw: RawCanvasNode): RPNode | null | { parseError: string } {
-    // Not a RadiProtocol node — skip silently (PARSE-03)
+    // Not a Protocol Former node — skip silently (PARSE-03)
     const kind = raw['radiprotocol_nodeType'];
     if (kind === undefined || kind === null) return null;
 

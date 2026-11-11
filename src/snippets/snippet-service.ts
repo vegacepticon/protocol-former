@@ -89,7 +89,7 @@ export class SnippetService {
       !isAbsolute &&
       (normalized === root || normalized.startsWith(root + '/'));
     if (!insideRoot) {
-      console.error('[RadiProtocol] snippet-service rejected unsafe path:', path);
+      console.error('[Protocol Former] snippet-service rejected unsafe path:', path);
       return null;
     }
     return normalized;
@@ -256,7 +256,7 @@ export class SnippetService {
   async save(snippet: Snippet): Promise<void> {
     const normalized = this.assertInsideRoot(snippet.path);
     if (normalized === null) {
-      throw new Error(`[RadiProtocol] save rejected unsafe path: ${snippet.path}`);
+      throw new Error(`[Protocol Former] save rejected unsafe path: ${snippet.path}`);
     }
     await this.mutex.runExclusive(normalized, async () => {
       await ensureFolderPath(this.app.vault, this.settings.snippetFolderPath);
@@ -313,7 +313,7 @@ export class SnippetService {
   async createFolder(path: string): Promise<void> {
     const normalized = this.assertInsideRoot(path);
     if (normalized === null) {
-      throw new Error(`[RadiProtocol] createFolder rejected unsafe path: ${path}`);
+      throw new Error(`[Protocol Former] createFolder rejected unsafe path: ${path}`);
     }
     await this.mutex.runExclusive(normalized, async () => {
       await ensureFolderPath(this.app.vault, normalized);
@@ -401,7 +401,7 @@ export class SnippetService {
   async renameSnippet(oldPath: string, newBasename: string): Promise<string> {
     const normalizedOld = this.assertInsideRoot(oldPath);
     if (normalizedOld === null) {
-      throw new Error(`[RadiProtocol] renameSnippet rejected unsafe path: ${oldPath}`);
+      throw new Error(`[Protocol Former] renameSnippet rejected unsafe path: ${oldPath}`);
     }
     // Phase 2 (JSON-removal): reject every non-`.md` source before computing a
     // destination or touching the vault, so legacy JSON bytes can never be
@@ -418,7 +418,7 @@ export class SnippetService {
     const newPath = parent === '' ? `${newBasename}${ext}` : `${parent}/${newBasename}${ext}`;
     const normalizedNew = this.assertInsideRoot(newPath);
     if (normalizedNew === null) {
-      throw new Error(`[RadiProtocol] renameSnippet rejected unsafe new path: ${newPath}`);
+      throw new Error(`[Protocol Former] renameSnippet rejected unsafe new path: ${newPath}`);
     }
     return this.relocateSnippet(normalizedOld, normalizedNew);
   }
@@ -431,11 +431,11 @@ export class SnippetService {
   async moveSnippet(oldPath: string, newFolder: string): Promise<string> {
     const normalizedOld = this.assertInsideRoot(oldPath);
     if (normalizedOld === null) {
-      throw new Error(`[RadiProtocol] moveSnippet rejected unsafe path: ${oldPath}`);
+      throw new Error(`[Protocol Former] moveSnippet rejected unsafe path: ${oldPath}`);
     }
     const normalizedFolder = this.assertInsideRoot(newFolder);
     if (normalizedFolder === null) {
-      throw new Error(`[RadiProtocol] moveSnippet rejected unsafe destination: ${newFolder}`);
+      throw new Error(`[Protocol Former] moveSnippet rejected unsafe destination: ${newFolder}`);
     }
     const basename = normalizedOld.slice(normalizedOld.lastIndexOf('/') + 1);
     const normalizedNew =
@@ -448,7 +448,7 @@ export class SnippetService {
     const normalizedOld = this.assertInsideRoot(oldPath);
     const normalizedNew = this.assertInsideRoot(newPath);
     if (normalizedOld === null || normalizedNew === null) {
-      throw new Error('[RadiProtocol] relocateSnippet rejected unsafe path');
+      throw new Error('[Protocol Former] relocateSnippet rejected unsafe path');
     }
     if (!normalizedOld.toLowerCase().endsWith('.md') || !normalizedNew.endsWith('.md')) {
       throw new Error(this.t('snippetService.invalidName'));
@@ -474,7 +474,7 @@ export class SnippetService {
   async renameFolder(oldPath: string, newBasename: string): Promise<string> {
     const normalizedOld = this.assertInsideRoot(oldPath);
     if (normalizedOld === null || normalizedOld === this.settings.snippetFolderPath) {
-      throw new Error(`[RadiProtocol] renameFolder rejected unsafe path: ${oldPath}`);
+      throw new Error(`[Protocol Former] renameFolder rejected unsafe path: ${oldPath}`);
     }
     if (/[\\/]/.test(newBasename) || newBasename.trim() === '') {
       throw new Error(this.t('snippetService.invalidName'));
@@ -484,7 +484,7 @@ export class SnippetService {
     const newPath = parent === '' ? newBasename : `${parent}/${newBasename}`;
     const normalizedNew = this.assertInsideRoot(newPath);
     if (normalizedNew === null) {
-      throw new Error(`[RadiProtocol] renameFolder rejected unsafe new path: ${newPath}`);
+      throw new Error(`[Protocol Former] renameFolder rejected unsafe new path: ${newPath}`);
     }
     if (normalizedOld === normalizedNew) return normalizedNew;
     // Self-descendant guard: renaming into own subtree is nonsensical but
@@ -515,11 +515,11 @@ export class SnippetService {
   async moveFolder(oldPath: string, newParent: string): Promise<string> {
     const normalizedOld = this.assertInsideRoot(oldPath);
     if (normalizedOld === null || normalizedOld === this.settings.snippetFolderPath) {
-      throw new Error(`[RadiProtocol] moveFolder rejected unsafe path: ${oldPath}`);
+      throw new Error(`[Protocol Former] moveFolder rejected unsafe path: ${oldPath}`);
     }
     const normalizedParent = this.assertInsideRoot(newParent);
     if (normalizedParent === null) {
-      throw new Error(`[RadiProtocol] moveFolder rejected unsafe destination: ${newParent}`);
+      throw new Error(`[Protocol Former] moveFolder rejected unsafe destination: ${newParent}`);
     }
     const basename = normalizedOld.slice(normalizedOld.lastIndexOf('/') + 1);
     const normalizedNew =
@@ -568,7 +568,7 @@ export class SnippetService {
       }
       // Reporting must never turn a completed rename into an apparent failure.
       try { this.onReferenceSync(result); } catch (error) {
-        console.error('[RadiProtocol] Reference sync reporting failed', error);
+        console.error('[Protocol Former] Reference sync reporting failed', error);
       }
       return newPath;
     });

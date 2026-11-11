@@ -261,7 +261,7 @@ export class LibraryView extends ItemView {
     } catch (e) {
       if (!this.owns(generation)) return false;
       new Notice(t('library.refreshError'));
-      console.error('[RadiProtocol] library refresh failed', e);
+      console.error('[Protocol Former] library refresh failed', e);
       return false;
     } finally {
       if (this.owns(generation)) this.contentEl.removeClass('is-scanning');

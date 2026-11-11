@@ -2,7 +2,7 @@
 // Stage A0 regression tests: the transaction/uninstall path must not trust
 // shape-valid-but-forged vault metadata (journals / installed records).
 //
-// Threats covered (plan Этап A0, audits/RadiProtocol-Library/2026-09-06):
+// Threats covered (plan Этап A0, audits/Protocol Former-Library/2026-09-06):
 // 1. Forged journal with paths OUTSIDE Library namespaces + missing marker —
 //    recovery must NOT delete non-Library files and must not claim rollback.
 // 2. Corrupted journal shape (no marker entry / empty strings / marker not

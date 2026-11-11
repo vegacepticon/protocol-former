@@ -83,6 +83,7 @@ export class RunnerSessionHost {
   private graph: ProtocolGraph | null = null;
   private selfCheckItems: string[] = [];
   private selfCheckEnabled = false;
+  private conclusionDraftItems: string[] = [];
 
   private rootEl: HTMLElement | null = null;
   private headerEl: HTMLElement | null = null;
@@ -230,7 +231,7 @@ export class RunnerSessionHost {
       return false;
     }
 
-    this.readSelfCheckConfiguration(content);
+    this.readRunnerConfiguration(content);
     const parseResult = this.options.protocolDocumentParser.parse(content, this.options.protocolPath);
     if (!parseResult.success) {
       this.failBootstrap(parseResult.error, lifecycleGeneration);
@@ -251,6 +252,9 @@ export class RunnerSessionHost {
     if (!this.isLifecycleCurrent(lifecycleGeneration)) return false;
 
     this.graph = parseResult.graph;
+    // The draft panel is built in mount() before the protocol file is read, so
+    // seed the protocol's preconfigured items once the document is validated.
+    this.conclusionDraft?.setPresetLines(this.conclusionDraftItems);
     this.runner.start(this.graph, this.options.startNodeId);
     // Start-from-node auto-appended content (e.g. starting AT a preset Answer or
     // a text-block chain between the chosen node and the first question) lands in
@@ -315,6 +319,7 @@ export class RunnerSessionHost {
     this.graph = null;
     this.selfCheckItems = [];
     this.selfCheckEnabled = false;
+    this.conclusionDraftItems = [];
     this.answerDrafts.clear();
     this.answerErrors.clear();
     this.answerFocusRequest = null;
@@ -920,13 +925,15 @@ export class RunnerSessionHost {
     }
   }
 
-  private readSelfCheckConfiguration(content: string): void {
+  private readRunnerConfiguration(content: string): void {
     this.selfCheckItems = [];
     this.selfCheckEnabled = false;
+    this.conclusionDraftItems = [];
     try {
       const raw = JSON.parse(content) as {
         selfCheckItems?: unknown;
         selfCheckEnabled?: unknown;
+        conclusionDraftItems?: unknown;
       };
       if (Array.isArray(raw.selfCheckItems)) {
         this.selfCheckItems = raw.selfCheckItems
@@ -935,9 +942,16 @@ export class RunnerSessionHost {
           .filter((item) => item.length > 0);
       }
       this.selfCheckEnabled = raw.selfCheckEnabled === true;
+      if (Array.isArray(raw.conclusionDraftItems)) {
+        this.conclusionDraftItems = raw.conclusionDraftItems
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0);
+      }
     } catch {
       this.selfCheckItems = [];
       this.selfCheckEnabled = false;
+      this.conclusionDraftItems = [];
     }
   }
 
@@ -1090,7 +1104,7 @@ export class RunnerSessionHost {
       });
     } catch (error) {
       if (this.isLifecycleCurrent(lifecycleGeneration)) {
-        console.error('[RadiProtocol] Failed to insert conclusion draft', error);
+        console.error('[Protocol Former] Failed to insert conclusion draft', error);
         this.options.notify(this.options.t('runnerDraft.insertFailed'));
       }
     } finally {
@@ -1292,7 +1306,7 @@ export class RunnerSessionHost {
       return { text: '', hasSyntheticLeadingSeparator: false };
     }
     if (!afterText.startsWith(beforeText)) {
-      console.warn('[RadiProtocol] Text changed non-monotonically, skipping append');
+      console.warn('[Protocol Former] Text changed non-monotonically, skipping append');
       return { text: '', hasSyntheticLeadingSeparator: false };
     }
     return {
@@ -1322,7 +1336,7 @@ export class RunnerSessionHost {
       await flushing;
     } catch (error) {
       if (!this.isLifecycleCurrent(lifecycleGeneration)) return;
-      console.error('[RadiProtocol] Failed to append runner output to bound note', error);
+      console.error('[Protocol Former] Failed to append runner output to bound note', error);
       this.options.notify(this.options.t('inlineRunner.noteWriteFailed'));
     }
     if (this.isLifecycleCurrent(lifecycleGeneration)) this.render();
@@ -1439,7 +1453,7 @@ export class RunnerSessionHost {
       resolution = await this.options.snippetService.resolveSnippet(snippetId);
     } catch (error) {
       if (!this.isOperationCurrent(lifecycleGeneration, operationGeneration)) return;
-      console.error('[RadiProtocol] Failed to resolve runner snippet', error);
+      console.error('[Protocol Former] Failed to resolve runner snippet', error);
       this.renderError([this.options.t('inlineRunner.snippetLoadFailed')]);
       return;
     }

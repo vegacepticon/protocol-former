@@ -340,6 +340,29 @@ describe('RunnerSessionHost conclusion draft', () => {
     h.host.dispose();
   });
 
+  it('seeds the conclusion draft from the protocol preset as soon as the session starts', async () => {
+    const rawDocument = JSON.stringify({
+      schema: 'radiprotocol.protocol',
+      version: 1,
+      conclusionDraftItems: ['  Liver is not enlarged  ', '', 'No free fluid'],
+    });
+    const h = harness(answerGraph(), rawDocument, true);
+    await h.host.mount(h.root as unknown as HTMLElement);
+    const lines = h.root.querySelectorAll('.rp-runner-draft-line');
+    expect(lines.map((line) => line.value)).toEqual(['Liver is not enlarged', 'No free fluid']);
+    expect(h.root.querySelector('.rp-runner-draft')!.querySelector('textarea')!.value).toBe('');
+    expect(h.host.hasUninsertedDraft()).toBe(false);
+    h.host.dispose();
+  });
+
+  it('starts with a blank draft when the protocol has no preset', async () => {
+    const h = harness(answerGraph(), '{}', true);
+    await h.host.mount(h.root as unknown as HTMLElement);
+    expect(h.root.querySelectorAll('.rp-runner-draft-row')).toHaveLength(0);
+    expect(h.host.hasUninsertedDraft()).toBe(false);
+    h.host.dispose();
+  });
+
   it('inserts all text including pending input at the bound editor cursor, retaining it for repeat insertion', async () => {
     const h = harness(answerGraph(), '{}', true);
     const bound = bindEditor(h);

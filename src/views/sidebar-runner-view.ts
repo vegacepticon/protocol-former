@@ -190,7 +190,7 @@ export class SidebarRunnerView extends ItemView {
     try {
       mounted = await host.mount(this.sessionEl);
     } catch (error) {
-      console.error('[RadiProtocol] Sidebar runner host failed to mount', error);
+      console.error('[Protocol Former] Sidebar runner host failed to mount', error);
       host.dispose();
       this.requestClose();
       return false;

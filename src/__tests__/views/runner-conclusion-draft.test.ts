@@ -148,6 +148,39 @@ describe('RunnerConclusionDraft', () => {
     expect(s.onInsert).not.toHaveBeenCalled();
   });
 
+  it('seeds protocol preset lines as a baseline without clobbering typed text', () => {
+    const s = setup();
+    s.draft.setPresetLines(['  First  ', '', 'Second']);
+    expect(s.rows()).toHaveLength(2);
+    expect(s.container.querySelectorAll('.rp-runner-draft-line').map((line) => line.value)).toEqual(['First', 'Second']);
+    expect(s.draft.getText()).toBe('First\nSecond');
+    expect(s.draft.hasUninsertedText()).toBe(false);
+    expect(s.find('insert').disabled).toBe(false);
+
+    // A later preset application must not overwrite the seeded draft.
+    s.draft.setPresetLines(['Replacement']);
+    expect(s.draft.getText()).toBe('First\nSecond');
+
+    // Editing after seeding is user work again.
+    s.type('Changed', s.find('line'));
+    expect(s.draft.hasUninsertedText()).toBe(true);
+
+    const typed = setup();
+    typed.type('Typed before load');
+    typed.draft.setPresetLines(['Preset']);
+    expect(typed.rows()).toHaveLength(0);
+    expect(typed.draft.getText()).toBe('Typed before load');
+  });
+
+  it('ignores an empty preset', () => {
+    const s = setup();
+    s.draft.setPresetLines([]);
+    s.draft.setPresetLines([' ', '\t']);
+    expect(s.rows()).toHaveLength(0);
+    expect(s.draft.getText()).toBe('');
+    expect(s.draft.hasUninsertedText()).toBe(false);
+  });
+
   it('commits each nonblank pasted line on plain Enter, retaining useful whitespace', () => {
     const s = setup();
     s.commit('  First  \r\n\nSecond\n \t\nThird');

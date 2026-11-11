@@ -304,7 +304,7 @@ export class LibraryService {
   private warnReadinessError(protocolPath: string, error: unknown): void {
     if (error === undefined) return;
     console.warn(
-      `[RadiProtocol] library protocol readiness check failed for ${protocolPath}`,
+      `[Protocol Former] library protocol readiness check failed for ${protocolPath}`,
       error,
     );
   }
@@ -325,7 +325,7 @@ export class LibraryService {
     try {
       return await this.recordStore.list();
     } catch (e) {
-      console.warn('[RadiProtocol] library listInstalled failed — serving empty list', e);
+      console.warn('[Protocol Former] library listInstalled failed — serving empty list', e);
       return [];
     }
   }
@@ -337,7 +337,7 @@ export class LibraryService {
     try {
       return await this.recordStore.read(packageId, version);
     } catch (e) {
-      console.warn(`[RadiProtocol] library getInstalledRecord(${packageId}, ${version}) failed — treating as not installed`, e);
+      console.warn(`[Protocol Former] library getInstalledRecord(${packageId}, ${version}) failed — treating as not installed`, e);
       return null;
     }
   }
@@ -465,10 +465,10 @@ export class LibraryService {
       try {
         const migration = await this.installer.migrateInstalledRecords();
         if (migration.failed.length > 0) {
-          console.warn('[RadiProtocol] library migration completed with failures', migration.failed);
+          console.warn('[Protocol Former] library migration completed with failures', migration.failed);
         }
       } catch (e) {
-        console.warn('[RadiProtocol] library migration failed — will retry on next load', e);
+        console.warn('[Protocol Former] library migration failed — will retry on next load', e);
       }
       return report;
     } catch {
@@ -485,7 +485,7 @@ export class LibraryService {
       const snap = await this.cacheStore.readSnapshot();
       return snap ? { entries: snap.entries, fetchedAt: snap.fetchedAt } : null;
     } catch (e) {
-      console.warn('[RadiProtocol] library cached snapshot unreadable', e);
+      console.warn('[Protocol Former] library cached snapshot unreadable', e);
       return { error: safeErrorMessage(e) };
     }
   }

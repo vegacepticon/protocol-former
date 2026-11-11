@@ -1,7 +1,9 @@
-# RadiProtocol — Obsidian Plugin for Interactive Protocols
+# Protocol Former — Obsidian Plugin for Interactive Protocols
 
 ## Overview
-RadiProtocol is a TypeScript Obsidian plugin for authoring and running structured radiology documentation protocols. It bundles with esbuild, tests with Vitest, and keeps domain/runtime logic separate from Obsidian-facing persistence and UI where practical.
+Protocol Former is a TypeScript Obsidian plugin for authoring and running structured radiology documentation protocols. It bundles with esbuild, tests with Vitest, and keeps domain/runtime logic separate from Obsidian-facing persistence and UI where practical.
+
+> **Rebrand note.** The visible name is Protocol Former. `manifest.id`, the install folder and `data.json` path (`radiprotocol`), view type ids, command ids, the `.rp.json` schema (`radiprotocol.protocol`), and the internal `RadiProtocol*` class names deliberately keep the old identifier for backward compatibility. Renaming the id is a separate, explicitly migrated change — do not rename these incidentally.
 
 ## Project Map
 - `src/main.ts`, `src/settings.ts` — composition root, lifecycle, commands, settings, and service rebuilding.

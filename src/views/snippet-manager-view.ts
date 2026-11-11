@@ -244,7 +244,7 @@ export class SnippetManagerView extends ItemView {
     } catch (e) {
       if (!this.ownsRefresh(generation)) return false;
       new Notice(this.plugin.i18n.t('snippetManager.redrawError'));
-      console.error('[RadiProtocol] snippet manager refresh failed', e);
+      console.error('[Protocol Former] snippet manager refresh failed', e);
       return false;
     } finally {
       if (this.ownsRefresh(generation)) this.searchWrapEl.removeClass('is-scanning');
@@ -462,7 +462,7 @@ export class SnippetManagerView extends ItemView {
     } catch (e) {
       const error = (e as Error)?.message ?? t('snippetManager.unknownError');
       new Notice(t('snippetEditor.duplicateError', { error }));
-      console.error('[RadiProtocol] duplicate snippet failed', e);
+      console.error('[Protocol Former] duplicate snippet failed', e);
     }
   }
 
@@ -602,7 +602,7 @@ export class SnippetManagerView extends ItemView {
     } catch (e) {
       const error = (e as Error)?.message ?? t('snippetManager.unknownError');
       new Notice(t('snippetManager.listFoldersError', { error }));
-      console.error('[RadiProtocol] openMovePicker listAllFolders failed', e);
+      console.error('[Protocol Former] openMovePicker listAllFolders failed', e);
       return;
     }
 
@@ -626,7 +626,7 @@ export class SnippetManagerView extends ItemView {
       } catch (e) {
         const error = (e as Error)?.message ?? t('snippetManager.unknownError');
         new Notice(t('snippetManager.moveError', { error }));
-        console.error('[RadiProtocol] openMovePicker move failed', e);
+        console.error('[Protocol Former] openMovePicker move failed', e);
       }
     };
 
@@ -731,7 +731,7 @@ export class SnippetManagerView extends ItemView {
       await this.rewriteExpandState(oldPath, newPath);
     } catch (e) {
       if (this.mounted) new Notice(this.plugin.i18n.t('snippetManager.redrawError'));
-      console.error('[RadiProtocol] snippet manager path reconciliation failed', e);
+      console.error('[Protocol Former] snippet manager path reconciliation failed', e);
     }
     await this.refresh(selectedFolderPath);
   }

@@ -1,5 +1,5 @@
 // src/protocol/protocol-document.ts
-// Storage-neutral protocol document model for RadiProtocol.
+// Storage-neutral protocol document model for Protocol Former.
 // This is the canonical on-disk shape for .rp.json protocol files.
 //
 // Design goals:
@@ -10,14 +10,14 @@
 
 import type { RPNodeKind } from '../graph/graph-model';
 
-/** Canonical schema identifier for RadiProtocol JSON files. */
+/** Canonical schema identifier for Protocol Former JSON files. */
 export const PROTOCOL_SCHEMA = 'radiprotocol.protocol' as const;
 
 /** Current on-disk schema version. Bump on breaking changes. */
 export const PROTOCOL_VERSION = 1 as const;
 
 /**
- * Canonical on-disk shape for a RadiProtocol protocol (.rp.json).
+ * Canonical on-disk shape for a Protocol Former protocol (.rp.json).
  * Versioned to allow future evolution without breaking existing files.
  */
 export interface ProtocolDocumentV1 {
@@ -46,6 +46,13 @@ export interface ProtocolDocumentV1 {
   selfCheckEnabled?: boolean;
   /** Optional final runner self-check checklist items. */
   selfCheckItems?: string[];
+  /**
+   * Optional conclusion-draft items that seed the Runner's draft panel as soon
+   * as a session starts. One array entry is one editable draft line; the user
+   * can still edit, reorder, delete, or append before inserting the draft.
+   * Empty or absent = the draft starts blank.
+   */
+  conclusionDraftItems?: string[];
   /** Optional viewport state for visual editor persistence. */
   viewport?: {
     x: number;

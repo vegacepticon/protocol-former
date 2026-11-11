@@ -45,7 +45,7 @@ export class ProtocolDocumentStore {
       const raw = await this.app.vault.adapter.read(protocolPath);
       const parsed = JSON.parse(raw) as unknown;
       if (!isProtocolDocumentV1(parsed)) {
-        console.warn(`[RadiProtocol] ProtocolDocumentStore.read: invalid schema in ${protocolPath}`);
+        console.warn(`[Protocol Former] ProtocolDocumentStore.read: invalid schema in ${protocolPath}`);
         return null;
       }
       // One-time lossless migration of legacy `kind: 'loop'` nodes → looped
@@ -60,7 +60,7 @@ export class ProtocolDocumentStore {
       }
       return migrated;
     } catch (err) {
-      console.error(`[RadiProtocol] ProtocolDocumentStore.read failed for ${protocolPath}:`, err);
+      console.error(`[Protocol Former] ProtocolDocumentStore.read failed for ${protocolPath}:`, err);
       return null;
     }
   }
@@ -118,7 +118,7 @@ export class ProtocolDocumentStore {
 
     const file = this.app.vault.getAbstractFileByPath(protocolPath);
     if (!(file instanceof TFile)) {
-      throw new Error(`[RadiProtocol] ProtocolDocumentStore.create: file not found after write: ${protocolPath}`);
+      throw new Error(`[Protocol Former] ProtocolDocumentStore.create: file not found after write: ${protocolPath}`);
     }
 
     return { file, doc };

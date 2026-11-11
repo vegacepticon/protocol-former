@@ -191,7 +191,7 @@ export function generateRequestId(now: () => number = Date.now): string {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === 'function') return c.randomUUID();
   if (typeof c?.getRandomValues !== 'function') {
-    throw new Error('[RadiProtocol] no crypto source for requestId generation');
+    throw new Error('[Protocol Former] no crypto source for requestId generation');
   }
   const bytes = new Uint8Array(16);
   c.getRandomValues(bytes);

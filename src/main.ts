@@ -54,6 +54,10 @@ export interface OpenRunnerSessionOptions {
   startNodeId?: string;
 }
 
+// Rebrand note: the visible name is Protocol Former, but manifest.id, the
+// install folder, view/command ids, and the .rp.json schema intentionally keep
+// the `radiprotocol` identifier for backward compatibility. Renaming the id is
+// a separate, explicitly migrated change.
 export default class RadiProtocolPlugin extends Plugin {
   settings!: RadiProtocolSettings;
   i18n!: I18nService;
@@ -253,7 +257,7 @@ export default class RadiProtocolPlugin extends Plugin {
       void this.activatePluginMenuView();
     });
 
-    console.debug('[RadiProtocol] Plugin loaded');
+    console.debug('[Protocol Former] Plugin loaded');
   }
 
   // eslint-disable-next-line obsidianmd/detach-leaves -- runner leaves are intentionally transient and must not survive plugin unload
@@ -268,7 +272,7 @@ export default class RadiProtocolPlugin extends Plugin {
     this.inlineRunners.clear();
     this.sidebarRunnersByNote.clear();
     this.app.workspace.detachLeavesOfType(SIDEBAR_RUNNER_VIEW_TYPE);
-    console.debug('[RadiProtocol] Plugin unloaded');
+    console.debug('[Protocol Former] Plugin unloaded');
   }
 
   // Phase 85 INLINE-MULTI-01: registry API for inline runner instances. Key is
@@ -386,7 +390,7 @@ export default class RadiProtocolPlugin extends Plugin {
    * `Insert phrase from trigger`: replaces the word before the caret with the
    * phrase whose trigger matches it. Any phrase qualifies — a hotkey-mode
    * phrase simply waits for this command instead of firing while typing — and
-   * the command only touches fields RadiProtocol wired for expansion plus the
+   * the command only touches fields Protocol Former wired for expansion plus the
    * note editor, so it cannot rewrite a search box or another plugin's input.
    */
   private insertPhraseFromTrigger(): void {
@@ -572,7 +576,7 @@ export default class RadiProtocolPlugin extends Plugin {
   /**
    * Start the inline runner from a selected start-enabled node in a .rp.json protocol.
    *
-   * The command intentionally ignores any open Obsidian Canvas leaves: RadiProtocol's
+   * The command intentionally ignores any open Obsidian Canvas leaves: Protocol Former's
    * active authoring/runtime path is .rp.json, so the node list must come only from
    * the configured protocol picker folder.
    */
@@ -841,7 +845,7 @@ export default class RadiProtocolPlugin extends Plugin {
           this.sidebarRunnersByNote.delete(options.targetNote.path);
         }
         leaf.detach();
-        console.error('[RadiProtocol] Failed to open sidebar runner', error);
+        console.error('[Protocol Former] Failed to open sidebar runner', error);
       }
       return;
     }

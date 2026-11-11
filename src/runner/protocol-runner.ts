@@ -18,7 +18,7 @@ interface ProtocolRunnerOptions {
 }
 
 /**
- * Pure traversal state machine for RadiProtocol sessions.
+ * Pure traversal state machine for Protocol Former sessions.
  *
  * Public API (D-01):
  *   start(graph)              — begin a session

@@ -24,7 +24,7 @@ function resolveProtocolFilesBySuffix(
 ): TFile[] {
   const normalized = normalizeProtocolFolderPath(folderPath);
   if (normalized === '') {
-    console.debug(`[RadiProtocol][${debugLabel}] folderPath normalized to empty — skipping resolution.`);
+    console.debug(`[Protocol Former][${debugLabel}] folderPath normalized to empty — skipping resolution.`);
     return [];
   }
 
@@ -40,7 +40,7 @@ function resolveProtocolFilesBySuffix(
     };
     walk(folder);
     console.debug(
-      `[RadiProtocol][${debugLabel}] Resolved '${folderPath}' → '${normalized}' via TFolder walk; ${out.length} file(s).`,
+      `[Protocol Former][${debugLabel}] Resolved '${folderPath}' → '${normalized}' via TFolder walk; ${out.length} file(s).`,
     );
     return out;
   }
@@ -51,7 +51,7 @@ function resolveProtocolFilesBySuffix(
     if (f.path === normalized || f.path.startsWith(prefix)) out.push(f);
   }
   console.debug(
-    `[RadiProtocol][${debugLabel}] Resolved '${folderPath}' → '${normalized}' via getFiles() fallback; ${out.length} file(s). (getAbstractFileByPath returned ${folder === null ? 'null' : typeof folder})`,
+    `[Protocol Former][${debugLabel}] Resolved '${folderPath}' → '${normalized}' via getFiles() fallback; ${out.length} file(s). (getAbstractFileByPath returned ${folder === null ? 'null' : typeof folder})`,
   );
   return out;
 }

@@ -501,7 +501,7 @@ export class SnippetManagerTreeRenderer {
       const t = this.plugin.i18n.t.bind(this.plugin.i18n);
       const error = (e as Error)?.message ?? t('snippetManager.unknownError');
       new Notice(t('snippetManager.moveError', { error }));
-      console.error('[RadiProtocol] drop move failed', e);
+      console.error('[Protocol Former] drop move failed', e);
     }
   }
 

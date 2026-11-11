@@ -20,7 +20,7 @@
     "textExpansionEnabled": "Включить текстовую автозамену",
     "textExpansionEnabledDesc": "Заменять введённые триггеры в полях раннера, черновике заключения, полях заполнения сниппетов и в редакторе заметок.",
     "textExpansionInEditor": "Работать в редакторе заметок",
-    "textExpansionInEditorDesc": "Выполнять замену и в редакторе Markdown. Отключите, чтобы ограничиться полями RadiProtocol.",
+    "textExpansionInEditorDesc": "Выполнять замену и в редакторе Markdown. Отключите, чтобы ограничиться полями Protocol Former.",
     "language": "Язык",
     "languageLabel": "Язык / Language",
     "languageDesc": "Выберите язык интерфейса. / Select the interface language.",
@@ -171,10 +171,14 @@
     "loopBadgeAriaLabel": "Циклический вопрос",
     "optionOrderLabel": "Порядок отображения",
     "optionOrderHelp": "Перетащите чипы, чтобы изменить порядок вариантов этого вопроса в Runner.",
-    "optionOrderDragAria": "Перетащите, чтобы переупорядочить {label}"
+    "optionOrderDragAria": "Перетащите, чтобы переупорядочить {label}",
+    "conclusionDraftTitle": "Черновик заключения",
+    "conclusionDraftLabel": "Пункты черновика (по одному в строке)",
+    "conclusionDraftHelp": "Эти строки заполнят черновик заключения в Runner сразу при запуске сессии. Врач сможет отредактировать, переупорядочить, удалить или добавить пункты перед вставкой черновика в заметку. Оставьте поле пустым, чтобы начать с пустого черновика.",
+    "conclusionDraftPlaceholder": "Один пункт черновика в строке"
   },
   "donate": {
-    "invitation": "Спасибо за поддержку! Если RadiProtocol экономит вам время — буду рад любому переводу.",
+    "invitation": "Спасибо за поддержку! Если Protocol Former экономит вам время — буду рад любому переводу.",
     "addressCopied": "Адрес скопирован",
     "copyAddress": "Скопировать адрес"
   },
@@ -399,7 +403,7 @@
     "initializing": "Инициализация запуска протокола…"
   },
   "pluginMenu": {
-    "title": "Меню RadiProtocol",
+    "title": "Меню Protocol Former",
     "runProtocol": "Запустить протокол",
     "startFromNode": "Старт с конкретного узла",
     "openProtocolEditor": "Открыть редактор протоколов",
@@ -516,7 +520,7 @@
     "submitError": "Не удалось отправить: {reason}",
     "submitConsentPublic": "Подтверждаю: пакет может быть опубликован ОТКРЫТО (до и после модерации), пациентских данных в нём нет.",
     "submitConsentRights": "Подтверждаю: у меня есть права на распространение этих материалов.",
-    "submitErrClientUpdate": "Реестр требует более новую версию плагина — обновите RadiProtocol и повторите.",
+    "submitErrClientUpdate": "Реестр требует более новую версию плагина — обновите Protocol Former и повторите.",
     "submitErrVersionPublished": "Эта версия пакета уже опубликована — поднимите версию и отправьте заново.",
     "submitErrDigestMismatch": "Этот request id уже использовался с другим содержимым — измените протокол, чтобы начать новую заявку.",
     "submitErrStateUnknown": "Состояние отправки неизвестно (прервалась сеть). Позже проверьте «Мои заявки» — не отправляйте вслепую повторно.",
@@ -563,8 +567,8 @@
     "category.lower-extremities": "Нижние конечности"
   },
   "expansion": {
-    "disabled": "Текстовая автозамена отключена в настройках RadiProtocol.",
+    "disabled": "Текстовая автозамена отключена в настройках Protocol Former.",
     "hotkeyNoMatch": "Ни одна фраза не совпадает со словом перед курсором.",
-    "editorDisabled": "Раскрытие фраз в редакторе заметок отключено в настройках RadiProtocol."
+    "editorDisabled": "Раскрытие фраз в редакторе заметок отключено в настройках Protocol Former."
   }
 }

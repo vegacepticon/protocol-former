@@ -745,6 +745,15 @@
   margin-bottom: var(--size-4-2);
 }
 
+/* Conclusion draft preset: one item per line, stored in the .rp.json document. */
+.rp-protocol-editor-conclusion-draft-modal h3 {
+  text-align: center;
+}
+
+.rp-protocol-editor-conclusion-draft-modal textarea {
+  min-height: 140px;
+}
+
 .rp-protocol-editor-modal-start-point-field label {
   display: inline-flex;
   width: auto;

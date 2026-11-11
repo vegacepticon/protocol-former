@@ -1,6 +1,6 @@
 # Text expansion (`src/expansion/`)
 
-Typed trigger → insertion text, in RadiProtocol's own text fields and in the note editor. Built to replace the
+Typed trigger → insertion text, in Protocol Former's own text fields and in the note editor. Built to replace the
 Substitutions and Text Snippets community plugins without depending on either.
 
 ## Layers

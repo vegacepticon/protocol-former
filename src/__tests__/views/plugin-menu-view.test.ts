@@ -33,7 +33,7 @@ describe('PluginMenuView', () => {
     const view = createView();
     expect(view.getViewType()).toBe(PLUGIN_MENU_VIEW_TYPE);
     expect(PLUGIN_MENU_VIEW_TYPE).toBe('radiprotocol-plugin-menu');
-    expect(view.getDisplayText()).toBe('RadiProtocol menu');
+    expect(view.getDisplayText()).toBe('Protocol Former menu');
     expect(view.getIcon()).toBe('layout-list');
   });
 
@@ -72,7 +72,7 @@ describe('PluginMenuView', () => {
     const view = createView('ru');
     await view.onOpen();
 
-    expect(view.getDisplayText()).toBe('Меню RadiProtocol');
+    expect(view.getDisplayText()).toBe('Меню Protocol Former');
     const labels = Array.from(
       view.contentEl.querySelectorAll('.rp-plugin-menu-item-label'),
     ).map((el) => el.textContent);

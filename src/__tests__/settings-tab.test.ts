@@ -91,7 +91,7 @@ function makeApp() {
         { path: '' },
         { path: 'Protocols' },
         { path: 'Protocols/CT' },
-        { path: 'RadiProtocol Output' },
+        { path: 'Protocol Former Output' },
         { path: '.radiprotocol/snippets' },
       ],
     },

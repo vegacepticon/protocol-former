@@ -20,7 +20,7 @@
     "textExpansionEnabled": "Enable text expansion",
     "textExpansionEnabledDesc": "Replace typed triggers in runner fields, the conclusion draft, snippet fill-in fields, and the note editor.",
     "textExpansionInEditor": "Expand in the note editor",
-    "textExpansionInEditorDesc": "Also run expansion in the Markdown editor. Turn off to keep it limited to RadiProtocol fields.",
+    "textExpansionInEditorDesc": "Also run expansion in the Markdown editor. Turn off to keep it limited to Protocol Former fields.",
     "language": "Language",
     "languageLabel": "Language / Язык",
     "languageDesc": "Select the interface language. / Выберите язык интерфейса.",
@@ -171,10 +171,14 @@
     "loopBadgeAriaLabel": "Loop question",
     "optionOrderLabel": "Display order",
     "optionOrderHelp": "Drag chips to reorder this question's options as they appear in the Runner.",
-    "optionOrderDragAria": "Drag to reorder {label}"
+    "optionOrderDragAria": "Drag to reorder {label}",
+    "conclusionDraftTitle": "Conclusion draft preset",
+    "conclusionDraftLabel": "Draft items (one per line)",
+    "conclusionDraftHelp": "These lines prefill the Runner's conclusion draft as soon as a session starts. The radiologist can still edit, reorder, delete, or add items before inserting the draft into the note. Leave the field empty to start with a blank draft.",
+    "conclusionDraftPlaceholder": "One draft item per line"
   },
   "donate": {
-    "invitation": "Thank you for your support! If RadiProtocol saves you time, any donation is appreciated.",
+    "invitation": "Thank you for your support! If Protocol Former saves you time, any donation is appreciated.",
     "addressCopied": "Address copied",
     "copyAddress": "Copy address"
   },
@@ -399,7 +403,7 @@
     "initializing": "Initializing protocol runner…"
   },
   "pluginMenu": {
-    "title": "RadiProtocol menu",
+    "title": "Protocol Former menu",
     "runProtocol": "Run protocol",
     "startFromNode": "Start from specific node",
     "openProtocolEditor": "Open protocol editor",
@@ -516,7 +520,7 @@
     "submitError": "Submission failed: {reason}",
     "submitConsentPublic": "I confirm this package may be published PUBLICLY (before and after moderation) and contains no patient data.",
     "submitConsentRights": "I confirm I hold the rights to distribute this material.",
-    "submitErrClientUpdate": "The registry requires a newer plugin version — update RadiProtocol and try again.",
+    "submitErrClientUpdate": "The registry requires a newer plugin version — update Protocol Former and try again.",
     "submitErrVersionPublished": "This package version is already published — raise the version and submit again.",
     "submitErrDigestMismatch": "This request id was already used with different content — edit the protocol to start a fresh submission.",
     "submitErrStateUnknown": "The submission state is unknown (network interrupted). Check «My submissions» later — do not resend blindly.",
@@ -563,8 +567,8 @@
     "category.lower-extremities": "Lower extremities"
   },
   "expansion": {
-    "disabled": "Text expansion is disabled in RadiProtocol settings.",
+    "disabled": "Text expansion is disabled in Protocol Former settings.",
     "hotkeyNoMatch": "No phrase matches the word before the cursor.",
-    "editorDisabled": "Expansion in the note editor is disabled in RadiProtocol settings."
+    "editorDisabled": "Expansion in the note editor is disabled in Protocol Former settings."
   }
 }

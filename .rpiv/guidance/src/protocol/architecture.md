@@ -30,6 +30,9 @@ interface ProtocolDocumentV1 {
   schema: typeof PROTOCOL_SCHEMA; version: typeof PROTOCOL_VERSION;
   id: string; title: string; createdAt: string; updatedAt: string;
   nodes: ProtocolNodeRecord[]; edges: ProtocolEdgeRecord[];
+  // Optional runner extras read by RunnerSessionHost from the same file:
+  selfCheckEnabled?: boolean; selfCheckItems?: string[];
+  conclusionDraftItems?: string[];
 }
 function isProtocolDocumentV1(value: unknown): value is ProtocolDocumentV1 {
   // Envelope/arrays only; node semantics are downstream.

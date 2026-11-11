@@ -46,6 +46,8 @@ export function createModalBackdropCloseGuard(backdrop: HTMLElement): {
 /* Phase 4D — default node dimensions and kind-specific defaults */
 const DEFAULT_NODE_WIDTH = 200;
 const DEFAULT_NODE_HEIGHT = 80;
+/** Unique label target for the conclusion-draft preset textarea. */
+let nextConclusionDraftFieldId = 0;
 const DEFAULT_VIEWPORT_WIDTH = 30000;
 const DEFAULT_VIEWPORT_HEIGHT = 24000;
 const PROTOCOL_EDITOR_ORIGIN_X = DEFAULT_VIEWPORT_WIDTH / 2;
@@ -706,7 +708,7 @@ export class ProtocolEditorView extends ItemView {
     } catch (error) {
       this.renderShell();
       this.renderDocument();
-      console.error('[RadiProtocol] Protocol Editor load failed:', error);
+      console.error('[Protocol Former] Protocol Editor load failed:', error);
       new Notice(this.plugin.i18n.t('protocolEditor.loadFailed'));
     }
   }
@@ -740,6 +742,16 @@ export class ProtocolEditorView extends ItemView {
     });
     setIcon(selfCheckBtn, 'list-checks');
     selfCheckBtn.addEventListener('click', () => this.openSelfCheckModal());
+
+    const conclusionDraftBtn = floatingActions.createEl('button', {
+      cls: 'rp-protocol-editor-floating-action',
+      attr: {
+        type: 'button',
+        'aria-label': this.plugin.i18n.t('protocolEditor.conclusionDraftTitle'),
+      },
+    });
+    setIcon(conclusionDraftBtn, 'pencil');
+    conclusionDraftBtn.addEventListener('click', () => this.openConclusionDraftModal());
 
     const minimapToggleBtn = floatingActions.createEl('button', {
       cls: 'rp-protocol-editor-floating-action',
@@ -880,7 +892,7 @@ export class ProtocolEditorView extends ItemView {
         options.onEditModalOpened?.();
         new Notice(this.plugin.i18n.t('protocolEditor.nodeCreated'));
       } catch (err) {
-        console.error('[RadiProtocol] Failed to update Protocol Editor UI after creating node:', err);
+        console.error('[Protocol Former] Failed to update Protocol Editor UI after creating node:', err);
         options.onCreateFailed?.();
         new Notice(this.plugin.i18n.t('protocolEditor.saveFailed', { error: String(err) }));
       }
@@ -1061,7 +1073,7 @@ export class ProtocolEditorView extends ItemView {
         options.onEditModalOpened?.();
         new Notice(this.plugin.i18n.t('protocolEditor.nodeCreated'));
       } catch (err) {
-        console.error('[RadiProtocol] Failed to update Protocol Editor UI after creating connected node:', err);
+        console.error('[Protocol Former] Failed to update Protocol Editor UI after creating connected node:', err);
         options.onCreateFailed?.();
         new Notice(this.plugin.i18n.t('protocolEditor.saveFailed', { error: String(err) }));
       }
@@ -1786,6 +1798,104 @@ export class ProtocolEditorView extends ItemView {
     backdrop.addEventListener('pointerdown', backdropGuard.onPointerDown);
     backdrop.addEventListener('click', (e) => {
       if (backdropGuard.shouldCloseOnClick(e)) closeModal();
+    });
+  }
+
+  /**
+   * Author the per-protocol conclusion-draft preset. One non-empty line becomes
+   * one editable Runner draft item; the Runner seeds its draft panel from this
+   * array when a session starts. Persistence is debounced while typing and
+   * flushed on Save/close so a long draft does not write on every keystroke.
+   */
+  private openConclusionDraftModal(): void {
+    if (this.doc === null || this.protocolPath === null) return;
+    const owner = this.documentOwner.capture();
+    if (owner === null) return;
+    const t = this.plugin.i18n.t.bind(this.plugin.i18n);
+    const backdrop = document.body.createDiv({ cls: 'rp-protocol-editor-modal-backdrop' });
+    const modal = backdrop.createDiv({ cls: 'rp-protocol-editor-modal rp-protocol-editor-conclusion-draft-modal' });
+    modal.createEl('h3', { text: t('protocolEditor.conclusionDraftTitle') });
+    const body = modal.createDiv({ cls: 'rp-protocol-editor-modal-body' });
+    body.createDiv({
+      cls: 'rp-protocol-editor-modal-help',
+      text: t('protocolEditor.conclusionDraftHelp'),
+    });
+    const field = body.createDiv({ cls: 'rp-protocol-editor-modal-field' });
+    const textareaId = `rp-conclusion-draft-items-${++nextConclusionDraftFieldId}`;
+    field.createEl('label', {
+      text: t('protocolEditor.conclusionDraftLabel'),
+      attr: { for: textareaId },
+    });
+    const textarea = field.createEl('textarea', {
+      attr: {
+        id: textareaId,
+        rows: '6',
+        placeholder: t('protocolEditor.conclusionDraftPlaceholder'),
+      },
+    });
+    textarea.value = (this.doc.conclusionDraftItems ?? []).join('\n');
+
+    let saveTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+    const readItems = (): string[] => textarea.value
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    const persist = async (): Promise<void> => {
+      if (!this.documentOwner.isCurrent(owner) || this.libraryReadOnly) return;
+      const items = readItems();
+      const updated = await this.documentOwner.update(owner, (existing) => {
+        if (existing === null) protocolMissingFileError();
+        return {
+          ...existing,
+          conclusionDraftItems: items.length > 0 ? items : undefined,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      if (updated === null || !this.documentOwner.isCurrent(owner)) return;
+      if (this.doc !== null) {
+        this.doc = { ...this.doc, conclusionDraftItems: items.length > 0 ? items : undefined };
+      }
+    };
+    const reportSaveFailure = (error: unknown): void => {
+      console.error('[Protocol Former] Conclusion draft preset save failed:', error);
+      new Notice(t('protocolEditor.saveFailed', { error: String(error) }));
+    };
+    const flush = async (): Promise<void> => {
+      if (saveTimer !== null) {
+        globalThis.clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      await persist();
+    };
+    textarea.addEventListener('input', () => {
+      if (saveTimer !== null) globalThis.clearTimeout(saveTimer);
+      saveTimer = globalThis.setTimeout(() => {
+        saveTimer = null;
+        void persist().catch(reportSaveFailure);
+      }, 400);
+    });
+
+    const closeModal = this.documentOwner.own(owner, () => {
+      if (saveTimer !== null) {
+        globalThis.clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      backdrop.remove();
+    });
+    const saveAndClose = (): void => {
+      void flush().then(closeModal).catch(reportSaveFailure);
+    };
+
+    const footer = modal.createDiv({ cls: 'rp-protocol-editor-modal-footer' });
+    const doneBtn = footer.createEl('button', {
+      cls: 'rp-protocol-editor-modal-btn rp-protocol-editor-modal-btn-primary',
+      text: t('protocolEditor.save'),
+    });
+    doneBtn.addEventListener('click', saveAndClose);
+    const backdropGuard = createModalBackdropCloseGuard(backdrop);
+    backdrop.addEventListener('pointerdown', backdropGuard.onPointerDown);
+    backdrop.addEventListener('click', (e) => {
+      if (backdropGuard.shouldCloseOnClick(e)) saveAndClose();
     });
   }
 

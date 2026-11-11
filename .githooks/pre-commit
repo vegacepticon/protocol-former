@@ -5,7 +5,7 @@
 
 set -e
 
-echo "╭— RadiProtocol pre-commit gate ———————————————————————————————————————————————————————"
+echo "╭— Protocol Former pre-commit gate ———————————————————————————————————————————————————————"
 
 STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ts$' || true)
 STAGED_CSS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.css$' || true)

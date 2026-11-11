@@ -132,6 +132,11 @@ The runner host intentionally owns protocol migration/read/validation, accumulat
 3. Preserve read-only library guards and route persistence through the document store.
 </important>
 
+## Conclusion Draft Preset
+The editor's pencil floating action opens a document-owned overlay for `conclusionDraftItems`. Each non-empty trimmed line is one item; an empty textarea removes the optional field. Persistence is debounced while typing and flushed by **Save** or a backdrop close, so a long draft does not write per keystroke. Register the pending timer through `owner.own()` so a stale view cannot write.
+
+`RunnerSessionHost.readRunnerConfiguration()` owns the read path for both runner extras (`selfCheck*` and `conclusionDraftItems`) from the raw protocol JSON. The draft panel exists before the document is read, so seed it with `RunnerConclusionDraft.setPresetLines()` only after parse/validation succeeds and only when the user has not already typed. Seeding also sets the insertion baseline: an untouched preset does not count as uninserted work, does not block completion auto-close, and does not ask to discard on close. Any subsequent edit makes the draft uninserted again.
+
 ## Runner Keyboard and Focus
 `RunnerSessionHost` owns the whole runner keymap through `runner/keymap.ts`; both shells only forward `keydown` and translate `onRequestClose`. The host keeps `renderedOptions` (registration order from the renderers), decorates the first nine with `data-rp-key`/`aria-keyshortcuts`, rebuilds the hint row per render from the same availability snapshot, and restores root focus after a render that started with focus inside the runner. `autoFocusOnMount` defaults to true for the floating panel and is set to false by the sidebar, whose leaf already owns focus. `keyHintsVisibleByDefault` seeds the session-scoped hint row from the `showRunnerKeyHints` setting; `H` still toggles it per session. Never move focus when it currently lives outside the runner.
 

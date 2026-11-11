@@ -1,12 +1,12 @@
-# RadiProtocol
+# Protocol Former
 
 [Русская версия](README.ru.md)
 
-RadiProtocol is an [Obsidian](https://obsidian.md) plugin for radiologists who want to run structured examination protocols inside their reporting vault. It turns a protocol into a guided clinical checklist: choose the relevant branch, insert prepared report text or snippets, repeat sections for multiple findings, and write the generated text into the note bound to the session.
+Protocol Former is an [Obsidian](https://obsidian.md) plugin for radiologists who want to run structured examination protocols inside their reporting vault. It turns a protocol into a guided clinical checklist: choose the relevant branch, insert prepared report text or snippets, repeat sections for multiple findings, and write the generated text into the note bound to the session.
 
 Protocols are authored as **`.rp.json`** files in the built-in visual protocol editor.
 
-## What RadiProtocol helps with
+## What Protocol Former helps with
 
 - **Standardized radiology reporting.** Encode local protocols, modality workflows, follow-up recommendations, or structured report templates as reusable decision trees.
 - **Guided branching.** Question and answer nodes let the radiologist choose the clinically appropriate path without searching through long static templates.
@@ -24,28 +24,30 @@ Protocols are authored as **`.rp.json`** files in the built-in visual protocol e
 5. Fill snippet placeholders when prompted.
 6. Review the generated text appended to the note and edit it as needed before final reporting.
 
-RadiProtocol is a documentation aid. The radiologist remains responsible for clinical judgment, wording, and final report validation.
+Protocol Former is a documentation aid. The radiologist remains responsible for clinical judgment, wording, and final report validation.
 
 ## Installation
 
-RadiProtocol is a desktop-only plugin.
+Protocol Former is a desktop-only plugin.
 
 ### BRAT (recommended)
 
 1. Install the [Obsidian BRAT plugin](https://github.com/TfTHacker/obsidian42-brat).
 2. In BRAT settings, choose **Add Beta plugin** and paste the GitHub URL of this repository.
-3. Enable **RadiProtocol** in Obsidian's Community plugins list.
+3. Enable **Protocol Former** in Obsidian's Community plugins list.
 
 ### Manual installation
 
-1. Download `main.js`, `styles.css`, and `manifest.json` from the [GitHub Releases](https://github.com/vegacepticon/RadiProtocol/releases) page.
+1. Download `main.js`, `styles.css`, and `manifest.json` from the [GitHub Releases](https://github.com/vegacepticon/protocol-former/releases) page.
 2. Copy those files into `<your-vault>/.obsidian/plugins/radiprotocol/`.
 3. Reload Obsidian.
-4. Enable **RadiProtocol** in Obsidian's Community plugins list.
+4. Enable **Protocol Former** in Obsidian's Community plugins list.
+
+> **Rebrand status.** The visible name is **Protocol Former**. The plugin id, install folder (`radiprotocol`), settings path, view types, command ids, and the `.rp.json` schema keep the old identifier for compatibility, so existing installs and protocols keep working. Renaming the id is planned as a separate, explicitly migrated release.
 
 ## Setup
 
-1. Open RadiProtocol settings.
+1. Open Protocol Former settings.
 2. Set **Protocol folder** to the vault-relative folder that contains `.rp.json` protocol files. The default is `Protocols`; an empty value disables the protocol picker.
 3. Set **Snippet folder** to the vault-relative folder that contains snippet Markdown files. The default is `Snippets`.
 4. Choose the preferred text separator for accumulated report text: newline or space.
@@ -54,7 +56,7 @@ RadiProtocol is a desktop-only plugin.
 
 ## Commands
 
-RadiProtocol adds the following commands. No command has a default global hotkey.
+Protocol Former adds the following commands. No command has a default global hotkey.
 
 | Command | What it does |
 |---|---|
@@ -67,7 +69,7 @@ RadiProtocol adds the following commands. No command has a default global hotkey
 | **Open snippet manager** | Open the snippet manager view. |
 | **Open community library** | Open the community library view. |
 | **Export protocol as library package** | Choose a protocol and open the export modal: save a release bundle to the vault, or submit it to the community library. |
-| **Open plugin menu** | Reveal the persistent RadiProtocol menu in the right sidebar. |
+| **Open plugin menu** | Reveal the persistent Protocol Former menu in the right sidebar. |
 
 To assign a hotkey, open **Settings → Hotkeys**, search for the command name (for example, `Run protocol`), and click the **+** button. Obsidian stores hotkeys separately for each vault.
 
@@ -88,7 +90,7 @@ The runner takes focus when it opens and returns focus to itself after each acti
 | `C` | Focus the conclusion draft. |
 | `V` | Insert the conclusion draft into the bound note. |
 | `H` | Show or hide the hint row. |
-| `Esc` | Close the runner when focus is not in a text field. If the conclusion draft contains uninserted text, RadiProtocol asks before discarding it. |
+| `Esc` | Close the runner when focus is not in a text field. If the conclusion draft contains uninserted text, Protocol Former asks before discarding it. |
 | `Ctrl+Space` | Submit a free-text answer, or confirm the snippet fill-in modal. One-handed chord: it never inserts a character, so it is safe inside a field. |
 | `Shift+Enter` | Legacy alias of `Ctrl+Space` in free-text fields and in the fill-in modal. |
 | `Enter` | Add the current line as an item in the conclusion draft. |
@@ -96,7 +98,7 @@ The runner takes focus when it opens and returns focus to itself after each acti
 | `Tab` / `Shift+Tab` | Move focus forward or backward. |
 | `j` / `k` / `Tab` / `Shift+Tab` | Move through snippet picker results when the result list has focus. `Tab` from the last row and `Shift+Tab` from the first row leave the list for the next control (the first row hands focus back to the search field). |
 
-Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is shown by default: turn it off in **Settings → RadiProtocol → Show keyboard hints in the runner**, and open the full shortcut reference from the same place. `H` still toggles the row for the current session.
+Only the first nine options of a step are numbered; longer lists stay reachable with `Tab` and the mouse. Keys with `Ctrl`, `Alt` or `Cmd` are left to Obsidian except for the arrow aliases and `Ctrl+Space`. The hint row is shown by default: turn it off in **Settings → Protocol Former → Show keyboard hints in the runner**, and open the full shortcut reference from the same place. `H` still toggles the row for the current session.
 
 Inside the snippet fill-in modal the caret starts in the first placeholder, so no `Tab` is needed to begin typing. A choice field is a single `Tab` stop: the arrow keys move between its options and the `✎` Custom toggle, `1`–`9` toggle the numbered option without leaving the group (each pill shows its number, and digits still type themselves inside a text field), and `Tab` leaves the group for the next field. `Ctrl+Space` confirms from anywhere in the modal; `Shift+Enter` keeps working as a legacy alias.
 
@@ -117,13 +119,15 @@ The runner includes a session-only conclusion draft below the answer choices. Ty
 
 Protocol navigation, Back and Redo leave the draft unchanged. Uninserted text prevents automatic close on protocol or self-check completion. Closing through the Runner button, Escape outside a text field, the tab X or middle-click asks before discarding uninserted text. The native tab gesture guard depends on Obsidian's UI; command/menu closes, plugin unload and application exit are not intercepted.
 
-Drafts exist **only for the current run**. They are not saved in protocol files or settings, and do not survive a restart. The feature is enabled by default; the **Conclusion draft in runner** setting applies to new runs.
+A protocol can provide a **conclusion draft preset**. Open the protocol in the Protocol Editor, click the pencil button in the floating toolbar, and enter one item per line. Those items appear in the draft as soon as a Runner session for that protocol starts and are stored in the `.rp.json` file. An untouched preset is treated as the starting template: it does not block completion and does not trigger the discard confirmation. Any edit after startup makes the draft uninserted again.
+
+The session draft itself exists **only for the current run**. It is not saved in protocol files or settings and does not survive a restart. The feature is enabled by default; the **Conclusion draft in runner** setting applies to new runs.
 
 ## Text expansion
 
-RadiProtocol can insert longer text from a short trigger, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
+Protocol Former can insert longer text from a short trigger, so a separate Substitutions or Text Snippets plugin is no longer needed. It works in the runner's free-text answers, loop free-text targets, the conclusion draft, the snippet fill-in fields, and — optionally — the note editor.
 
-Enable it in **Settings → RadiProtocol → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The search field at the top filters a long list by trigger or insertion; **Add phrase** adds a new row at the top. The icon button switches the row between two modes:
+Enable it in **Settings → Protocol Former → Text expansion**, then open **Insertion phrases**. Each row is a pair: the trigger on the left and the insertion on the right. The search field at the top filters a long list by trigger or insertion; **Add phrase** adds a new row at the top. The icon button switches the row between two modes:
 
 - **Auto-replacement** — the trigger is replaced as soon as it is complete: `-->` becomes `→`. This is the Substitutions behaviour.
 - **Hotkey insertion** — the typed word stays as it is until you run **Insert phrase from trigger** from the command palette or its hotkey. Type the trigger, press the chord, and the word is replaced. The command matches any phrase, including auto-replacement ones; assign the chord in **Settings → Hotkeys** (no default is set).
@@ -133,7 +137,7 @@ In a replacement, `\n`, `\t`, `\b` and `\\` are character escapes, `$nl$` insert
 Notes and limits:
 
 - Expansion applies to direct typing only; pasted text is never rewritten.
-- Hotkey insertion touches only RadiProtocol's own fields and the note editor. It cannot rewrite a search box or another plugin's input, and it follows the **Expand in the note editor** toggle.
+- Hotkey insertion touches only Protocol Former's own fields and the note editor. It cannot rewrite a search box or another plugin's input, and it follows the **Expand in the note editor** toggle.
 - In plugin text fields the replacement bypasses the browser's native undo (one Ctrl+Z does not restore the trigger). The note editor keeps its normal undo history.
 - The 3.6.21 `trigger => replacement` list is migrated automatically: rows become auto-replacement phrases, except rows from the old **On Space** mode, which become hotkey phrases.
 - If another expansion plugin is still enabled, turn it off to avoid double expansion in the note editor.
@@ -144,9 +148,9 @@ A protocol can define a completion checklist. In the protocol editor, open the c
 
 ## Community library
 
-The community library lets you browse and install published protocols without leaving Obsidian. The catalog and moderation service are external to this repository: RadiProtocol is the client, not the registry host.
+The community library lets you browse and install published protocols without leaving Obsidian. The catalog and moderation service are external to this repository: Protocol Former is the client, not the registry host.
 
-RadiProtocol ships with bundled catalog endpoints (`https://library.radiprotocol.pro`, with `https://radiprotocol.pages.dev` as a mirror), so the library works without configuration. An explicit **Advanced → Library registry URL** replaces the bundled endpoints; leave it empty to use them. Invalid or non-HTTPS values make the catalog unavailable.
+Protocol Former ships with bundled catalog endpoints (`https://library.radiprotocol.pro`, with `https://radiprotocol.pages.dev` as a mirror), so the library works without configuration. An explicit **Advanced → Library registry URL** replaces the bundled endpoints; leave it empty to use them. Invalid or non-HTTPS values make the catalog unavailable.
 
 If the registry cannot be reached, the view shows an unavailable banner and serves the last cached catalog when one exists.
 
@@ -154,11 +158,11 @@ If the registry cannot be reached, the view shows an unavailable banner and serv
 
 1. Run **Open community library**.
 2. Browse, search, or filter the catalog, then open a package to review its protocol title and snippet paths with their SHA-256 hashes.
-3. Choose **Install**. RadiProtocol downloads the full release again, verifies its hashes and protocol graph, and commits snippets, protocol, then the Installed marker.
+3. Choose **Install**. Protocol Former downloads the full release again, verifies its hashes and protocol graph, and commits snippets, protocol, then the Installed marker.
 4. Wait for the progress dialog to report success. The package appears under **Installed**, and its protocol becomes available in the normal protocol pickers once Obsidian indexes the new file.
 5. If the dialog reports that indexing is still pending, the package is already committed; do not reinstall it. It may appear in the picker shortly. Refresh the Community library view to confirm the Installed record.
 
-Installed package files live under a managed `library/<package>/<version>/` namespace inside the configured protocol and snippet folders. They are read-only in RadiProtocol; use **Uninstall** from the Installed section to remove only package-owned files.
+Installed package files live under a managed `library/<package>/<version>/` namespace inside the configured protocol and snippet folders. They are read-only in Protocol Former; use **Uninstall** from the Installed section to remove only package-owned files.
 
 **Import from file…** installs a release bundle JSON from the vault through the same verification and transaction path. This is useful for offline sharing and for reviewing a package before publication.
 
@@ -184,13 +188,14 @@ The **My submissions** section of the library view shows attempts made from this
 5. Use **Snippet** nodes to insert reusable report fragments from a file or folder.
 6. Use **Loop** nodes when the same reporting section may need to be repeated.
 7. Optionally define a self-check checklist in the editor toolbar.
-8. Save the protocol and test it with **Run protocol** on a Markdown note.
+8. Optionally define a conclusion draft preset with the pencil button in the editor toolbar; its lines prefill the Runner draft on every new run.
+9. Save the protocol and test it with **Run protocol** on a Markdown note.
 
 > **Text block compatibility.** New protocols no longer offer a **Text block** node type in the creation menu — chain **Answer** nodes instead. Existing protocols that contain `text-block` nodes (including snippet-backed ones) continue to load, run, edit, and appear in **Start from specific node**; you do not need to migrate them.
 
 ## Snippets
 
-RadiProtocol supports two Markdown snippet formats, both stored as `.md` files in the snippet folder:
+Protocol Former supports two Markdown snippet formats, both stored as `.md` files in the snippet folder:
 
 - **Plain Markdown snippets**: the file contents are inserted as written, with no placeholder substitution.
 - **Markdown templates**: a `.md` file with a YAML-like frontmatter block that declares placeholders. Supported placeholder types are **free text** and **choice** (with optional predefined options). Placeholders are filled during protocol execution and substituted into the template body via `{{id}}` tokens.
@@ -206,7 +211,7 @@ A snippet node can point to a specific snippet file or to a directory. When it p
 - Library bookkeeping (installed records, catalog cache, submissions, transaction journal) lives in `.radiprotocol/library/`.
 - Plugin settings live in `.obsidian/plugins/radiprotocol/data.json` and are managed by Obsidian.
 
-Back up the vault normally; RadiProtocol keeps no separate database.
+Back up the vault normally; Protocol Former keeps no separate database.
 
 ## For contributors
 

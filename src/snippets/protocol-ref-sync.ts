@@ -53,7 +53,7 @@ export async function rewriteProtocolSnippetRefs(
           parsed = JSON.parse(raw) as ProtocolDocumentV1;
         } catch (e) {
           const reason = `invalid JSON: ${(e as Error).message}`;
-          console.error('[RadiProtocol] protocol-ref-sync:', file.path, reason);
+          console.error('[Protocol Former] protocol-ref-sync:', file.path, reason);
           skipped.push({ path: file.path, reason });
           return;
         }
@@ -94,12 +94,12 @@ export async function rewriteProtocolSnippetRefs(
           updated.push(file.path);
         } catch (e) {
           const reason = `write failed: ${(e as Error).message}`;
-          console.error('[RadiProtocol] protocol-ref-sync:', file.path, reason);
+          console.error('[Protocol Former] protocol-ref-sync:', file.path, reason);
           skipped.push({ path: file.path, reason });
         }
       } catch (e) {
         const reason = `read failed: ${(e as Error).message}`;
-        console.error('[RadiProtocol] protocol-ref-sync:', file.path, reason);
+        console.error('[Protocol Former] protocol-ref-sync:', file.path, reason);
         skipped.push({ path: file.path, reason });
       }
     });

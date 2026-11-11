@@ -370,6 +370,10 @@ const t = (key: string, _params?: Record<string, string>): string => {
     'protocolEditor.snippetNodeLabelLabel': 'Snippet label',
     'protocolEditor.startPointEnabledLabel': 'Start point',
     'selfCheck.title': 'Self-check',
+    'protocolEditor.conclusionDraftTitle': 'Conclusion draft preset',
+    'protocolEditor.conclusionDraftLabel': 'Draft items (one per line)',
+    'protocolEditor.conclusionDraftHelp': 'These lines prefill the Runner conclusion draft.',
+    'protocolEditor.conclusionDraftPlaceholder': 'One draft item per line',
     'protocolEditor.toggleMinimap': 'Minimap',
     'protocolEditor.autoLayout': 'Auto layout',
     'protocolEditor.autoLayoutVertical': 'Vertical layout',
@@ -652,6 +656,54 @@ describe('ProtocolEditorView: floating action button aria-labels', () => {
     const buttons = floatingActions.children.filter((c: MockEl) => c.tagName === 'BUTTON');
     const selfCheckBtn = buttons.find((b: MockEl) => b._attrs['aria-label'] === 'Self-check')!;
     expect(selfCheckBtn._attrs['aria-label']).toBe('Self-check');
+  });
+
+  it('conclusion draft floating button has localized aria-label', () => {
+    const { rootEl } = createShellView();
+    const workspace = rootEl.children.find((c: MockEl) => c.classList.has('rp-protocol-editor-workspace'))!;
+    const floatingActions = workspace.children.find((c: MockEl) => c.classList.has('rp-protocol-editor-floating-actions'))!;
+    const buttons = floatingActions.children.filter((c: MockEl) => c.tagName === 'BUTTON');
+    const draftBtn = buttons.find((b: MockEl) => b._attrs['aria-label'] === 'Conclusion draft preset')!;
+    expect(draftBtn._attrs['aria-label']).toBe('Conclusion draft preset');
+  });
+
+  it('conclusion draft modal persists one trimmed item per line and closes on Save', async () => {
+    const { view } = createShellView();
+    const doc = (view as any).doc as ProtocolDocumentV1;
+    const updates: ProtocolDocumentV1[] = [];
+    (view as any).documentOwner = {
+      capture: () => ({ path: 'test.rp.json', generation: 1 }),
+      isCurrent: () => true,
+      update: async (_lease: unknown, mutate: (existing: ProtocolDocumentV1) => ProtocolDocumentV1) => {
+        const updated = mutate(doc);
+        updates.push(updated);
+        return updated;
+      },
+      own: (_lease: unknown, dispose: () => void) => dispose,
+    };
+    const backdrop = makeEl('div');
+    const savedDocument = (globalThis as any).document;
+    (globalThis as any).document = { body: { createDiv: () => backdrop }, activeElement: null };
+    try {
+      (view as any).openConclusionDraftModal();
+      const textarea = findAllByTag(backdrop, 'textarea')[0]!;
+      expect(textarea).toBeDefined();
+      textarea.value = '  Alpha  \n\n Beta ';
+      for (const handler of textarea._listeners.get('input') ?? []) handler({});
+
+      const saveBtn = findAllByTag(backdrop, 'button').find((b) => b._text === 'Save')!;
+      for (const handler of saveBtn._listeners.get('click') ?? []) handler({});
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(updates).toHaveLength(1);
+      expect(updates[0]!.conclusionDraftItems).toEqual(['Alpha', 'Beta']);
+      expect((view as any).doc.conclusionDraftItems).toEqual(['Alpha', 'Beta']);
+      expect(backdrop.isConnected).toBe(false);
+    } finally {
+      (globalThis as any).document = savedDocument;
+    }
   });
 
   it('minimap toggle floating button has localized aria-label', () => {

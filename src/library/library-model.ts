@@ -144,7 +144,7 @@ export class LibraryStoreError extends Error {
   readonly kind: 'malformed' | 'write-failed' | 'read-failed';
   readonly path: string;
   constructor(kind: LibraryStoreError['kind'], path: string, message: string) {
-    super(`[RadiProtocol] library store ${kind} at ${path}: ${message}`);
+    super(`[Protocol Former] library store ${kind} at ${path}: ${message}`);
     this.name = 'LibraryStoreError';
     this.kind = kind;
     this.path = path;

@@ -1,11 +1,11 @@
 {
 	"id": "radiprotocol",
-	"name": "RadiProtocol",
+	"name": "Protocol Former",
 	"minAppVersion": "1.5.7",
 	"description": "Guided structured radiology protocol runner for radiologists.",
 	"author": "vegacepticon",
 	"authorUrl": "https://github.com/vegacepticon",
 	"fundingUrl": "",
 	"isDesktopOnly": true,
-	"version": "3.6.24"
+	"version": "3.7.0"
 }
