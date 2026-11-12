@@ -8,7 +8,19 @@
 }
 
 .rp-snippet-modal-field {
-  /* migrated to .rp-stack utility (Phase 80) */
+  /* Layout comes from .rp-stack (Phase 80); this file owns the question-level
+     focus frame that replaces per-option focus as the primary indicator. */
+  border-radius: var(--radius-m);
+  transition: background-color 120ms ease;
+}
+
+/* A placeholder is a "question": when any control inside it has focus, the
+   whole block is outlined so Tab/Shift+Tab read as movement between questions,
+   not between individual option pills. */
+.rp-snippet-modal-field:focus-within {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 4px;
+  background: color-mix(in srgb, var(--interactive-accent) 7%, transparent);
 }
 
 .rp-snippet-modal-label {
@@ -164,6 +176,28 @@
 
 .rp-snippet-modal fieldset {
   min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* The fieldset is the question's programmatic focus target; the visible frame
+   is painted by .rp-snippet-modal-field:focus-within above. */
+.rp-snippet-modal fieldset:focus {
+  outline: none;
+}
+
+/* Arrow navigation still needs a marker for the current pill, but it must not
+   compete with the question frame. Mouse clicks keep only the selected state;
+   keyboard navigation adds a restrained inner outline. */
+.rp-snippet-modal-options .rp-snippet-fill-option-row:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.rp-snippet-modal-options .rp-snippet-fill-option-row:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus, var(--interactive-accent));
+  outline-offset: 2px;
 }
 
 .rp-snippet-modal-free-text,
@@ -210,6 +244,18 @@
 .rp-snippet-modal-custom-input {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* One focus frame per question: the wrapper outline above is the indicator, so
+   the inner textarea must not paint a second (host-default) focus ring. The
+   filled state keeps its own accent border/box-shadow — that is content state,
+   not focus state. */
+.rp-snippet-modal-free-text:focus:not(.rp-snippet-field-filled),
+.rp-snippet-modal-free-text:focus-visible:not(.rp-snippet-field-filled),
+.rp-snippet-modal-custom-input:focus:not(.rp-snippet-field-filled),
+.rp-snippet-modal-custom-input:focus-visible:not(.rp-snippet-field-filled) {
+  outline: none;
+  box-shadow: none;
 }
 
 .rp-snippet-modal-free-text.rp-snippet-field-filled,

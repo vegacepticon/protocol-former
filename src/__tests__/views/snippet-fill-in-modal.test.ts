@@ -33,7 +33,7 @@ interface MockEl {
   inputMode: string;
   readOnly: boolean;
   scrollHeight: number;
-  /** Times `focus()` was called; lets autofocus/roving assertions be observable. */
+  /** Times `focus()` was called; lets autofocus/question-focus assertions be observable. */
   focusCount: number;
   dataset: Record<string, string>;
   style: Record<string, string>;
@@ -249,6 +249,7 @@ vi.mock('obsidian', () => {
       this.contentEl = makeEl('div');
       this.titleEl = makeEl('div');
       this.modalEl = makeEl('div');
+      this.modalEl.createDiv({ cls: 'modal-close-button' });
     }
     open(): void { this.onOpen(); }
     close(): void { this.onClose(); }
@@ -884,6 +885,18 @@ describe('SnippetFillInModal — inserted values highlighted in preview', () => 
     expect(css).toContain('.rp-snippet-preview-placeholder');
   });
 
+  it('CSS outlines the whole question on focus (question-level focus tripwire)', () => {
+    // The focus frame must sit on the field wrapper, not on an individual
+    // option pill: that is what makes Tab read as "next question".
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { readFileSync } = require('node:fs') as typeof import('node:fs');
+    const cssPath = require.resolve('../../styles/snippet-fill-modal.css');
+    const css = readFileSync(cssPath, 'utf8');
+    const focusBlock = css.match(/\.rp-snippet-modal-field:focus-within\s*\{[^}]*\}/);
+    expect(focusBlock?.[0]).toContain('outline: 2px solid var(--interactive-accent)');
+    expect(css).toMatch(/\.rp-snippet-modal fieldset:focus\s*\{[^}]*outline:\s*none/);
+  });
+
   it('wraps choice selections and custom override values in value spans', () => {
     const snippet = makeSnippet(
       [
@@ -1122,7 +1135,7 @@ describe('SnippetFillInModal — Shift+Enter confirms', () => {
 
   it('ignores Shift with a non-Enter key', async () => {
     const { modal, root, field } = openModalWithFreeText();
-    const { preventDefault } = triggerBubbledKeydown(root, field, 'Tab', { shiftKey: true });
+    const { preventDefault } = triggerBubbledKeydown(root, field, 'a', { shiftKey: true });
     expect(preventDefault).not.toHaveBeenCalled();
     expect((modal as unknown as { resolved: boolean }).resolved).toBe(false);
     modal.onClose();
@@ -1167,7 +1180,7 @@ describe('SnippetFillInModal — Shift+Enter confirms', () => {
 });
 
 // =========================================================================
-// Ctrl+Space confirm, autofocus, roving tabindex, digit toggles (3.6.19)
+// Ctrl+Space confirm, autofocus, question-level Tab stops, digit toggles (3.6.19)
 // =========================================================================
 
 /** Dispatch a keydown on `host` with `target` overridden (MockEl has no bubbling). */
@@ -1203,6 +1216,7 @@ function dispatchKeydownOn(
 function openModalWithChoice(options: string[] = ['A', 'B', 'C']): {
   modal: SnippetFillInModal;
   root: MockEl;
+  fieldset: MockEl;
   options: MockEl[];
   toggle: MockEl;
   customInput: MockEl;
@@ -1214,11 +1228,43 @@ function openModalWithChoice(options: string[] = ['A', 'B', 'C']): {
   const modal = new SnippetFillInModal(app, snippet);
   modal.onOpen();
   const root = (modal as unknown as { contentEl: MockEl }).contentEl;
+  const fieldset = root.querySelector('fieldset');
   const buttons = root.querySelectorAll('.rp-snippet-fill-option-row');
   const toggle = root.querySelector('.rp-snippet-modal-custom-toggle');
   const customInput = root.querySelector('.rp-snippet-modal-custom-input');
-  if (!toggle || !customInput) throw new Error('choice field incomplete');
-  return { modal, root, options: buttons, toggle, customInput };
+  if (!fieldset || !toggle || !customInput) throw new Error('choice field incomplete');
+  return { modal, root, fieldset, options: buttons, toggle, customInput };
+}
+
+function openModalWithTwoChoiceQuestions(): {
+  modal: SnippetFillInModal;
+  root: MockEl;
+  fieldsets: MockEl[];
+  options: MockEl[];
+} {
+  const snippet = makeSnippet(
+    [
+      { id: 'a', label: 'A', type: 'choice', options: ['A1', 'A2', 'A3'] },
+      { id: 'b', label: 'B', type: 'choice', options: ['B1', 'B2'] },
+    ],
+    'A: {{a}} B: {{b}}',
+  );
+  const modal = new SnippetFillInModal(app, snippet);
+  modal.onOpen();
+  const root = (modal as unknown as { contentEl: MockEl }).contentEl;
+  return {
+    modal,
+    root,
+    fieldsets: root.querySelectorAll('fieldset'),
+    options: root.querySelectorAll('.rp-snippet-fill-option-row'),
+  };
+}
+
+function findButtonByText(root: MockEl, label: string): MockEl {
+  const found = root.querySelectorAll('button')
+    .find((btn) => (btn as unknown as { _text: string })._text === label);
+  if (!found) throw new Error(`${label} button missing`);
+  return found;
 }
 
 describe('SnippetFillInModal — Ctrl+Space confirms', () => {
@@ -1291,56 +1337,169 @@ describe('SnippetFillInModal — first field focus on open', () => {
     expect(field.focusCount).toBeGreaterThanOrEqual(1);
   });
 
-  it('focuses the first option of a choice field', () => {
-    const { options } = openModalWithChoice();
-    expect(options[0]!.focusCount).toBeGreaterThanOrEqual(1);
+  it('focuses the whole first choice question, not its first option', () => {
+    const { fieldset, options } = openModalWithChoice();
+    expect(fieldset.focusCount).toBeGreaterThanOrEqual(1);
+    expect(options[0]!.focusCount).toBe(0);
     expect(options[1]!.focusCount).toBe(0);
   });
 });
 
-describe('SnippetFillInModal — roving tabindex in a choice group', () => {
-  it('keeps one Tab stop per group and moves it with the arrows', () => {
-    const { root, options, toggle } = openModalWithChoice();
+describe('SnippetFillInModal — question-level Tab navigation', () => {
+  it('makes the whole question the single Tab stop', () => {
+    const { fieldset, options, toggle } = openModalWithChoice();
+
+    expect(fieldset.getAttribute('tabindex')).toBe('0');
+    expect(options.every((option) => option.getAttribute('tabindex') === '-1')).toBe(true);
+    expect(toggle.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('moves to the next question with Tab and back with Shift+Tab', () => {
+    const { root, fieldsets } = openModalWithTwoChoiceQuestions();
+    expect(fieldsets).toHaveLength(2);
+    expect(fieldsets[0]!.focusCount).toBeGreaterThanOrEqual(1);
+
+    const tab = dispatchKeydownOn(root, fieldsets[0]!, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldsets[1]!.focusCount).toBeGreaterThanOrEqual(1);
+
+    const before = fieldsets[0]!.focusCount;
+    const shiftTab = dispatchKeydownOn(root, fieldsets[1]!, 'Tab', {
+      code: 'Tab',
+      shiftKey: true,
+    });
+    expect(shiftTab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldsets[0]!.focusCount).toBeGreaterThan(before);
+  });
+
+  it('leaves a choice question in a single Tab after selecting an option with a digit', () => {
+    const { root, fieldsets, options } = openModalWithTwoChoiceQuestions();
+
+    // Select the third option of the first question without moving focus.
+    dispatchKeydownOn(fieldsets[0]!, fieldsets[0]!, '3', { code: 'Digit3' });
+    expect(options[2]!.hasClass('is-selected')).toBe(true);
+    expect(options[2]!.focusCount).toBe(0);
+
+    // One Tab — not two — must reach the next question.
+    const tab = dispatchKeydownOn(root, fieldsets[0]!, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldsets[1]!.focusCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('moves from a middle option to the next question in a single Tab', () => {
+    const { root, fieldsets, options } = openModalWithTwoChoiceQuestions();
+
+    const tab = dispatchKeydownOn(root, options[2]!, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldsets[1]!.focusCount).toBeGreaterThanOrEqual(1);
+
+    const shiftTab = dispatchKeydownOn(root, options[3]!, 'Tab', {
+      code: 'Tab',
+      shiftKey: true,
+    });
+    expect(shiftTab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldsets[0]!.focusCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('keeps the caret in a free-text question and moves between mixed questions', () => {
+    const snippet = makeSnippet(
+      [
+        { id: 'f', label: 'F', type: 'free-text' },
+        { id: 'c', label: 'C', type: 'choice', options: ['a', 'b'] },
+      ],
+      'F: {{f}} C: {{c}}',
+    );
+    const modal = new SnippetFillInModal(app, snippet);
+    modal.onOpen();
+    const root = (modal as unknown as { contentEl: MockEl }).contentEl;
+    const field = root.querySelector('.rp-snippet-modal-free-text')!;
     const fieldset = root.querySelector('fieldset')!;
 
-    expect(options[0]!.getAttribute('tabindex')).toBe('0');
-    expect(options[1]!.getAttribute('tabindex')).toBe('-1');
-    expect(options[2]!.getAttribute('tabindex')).toBe('-1');
+    // The caret starts in the free-text field, and the field is the focus target.
+    expect(field.focusCount).toBeGreaterThanOrEqual(1);
+
+    const tab = dispatchKeydownOn(root, field, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(fieldset.focusCount).toBeGreaterThanOrEqual(1);
+
+    const before = field.focusCount;
+    const shiftTab = dispatchKeydownOn(root, fieldset, 'Tab', {
+      code: 'Tab',
+      shiftKey: true,
+    });
+    expect(shiftTab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(field.focusCount).toBeGreaterThan(before);
+  });
+
+  it('leaves modified Tab chords to the host', () => {
+    const { root, fieldsets } = openModalWithTwoChoiceQuestions();
+
+    for (const mods of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }]) {
+      const result = dispatchKeydownOn(root, fieldsets[0]!, 'Tab', { code: 'Tab', ...mods });
+      expect(result.preventDefault).not.toHaveBeenCalled();
+    }
+  });
+
+  it('hands the edges of the question list to Cancel and the modal close button', () => {
+    const { modal, root, fieldsets } = openModalWithTwoChoiceQuestions();
+
+    const tab = dispatchKeydownOn(root, fieldsets[1]!, 'Tab', { code: 'Tab' });
+    expect(tab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(findButtonByText(root, 'Cancel').focusCount).toBeGreaterThanOrEqual(1);
+
+    // Close button lives on modalEl in the real Obsidian modal chrome.
+    const modalEl = (modal as unknown as { modalEl: MockEl }).modalEl;
+    const closeButton = modalEl.querySelector('.modal-close-button')!;
+    const shiftTab = dispatchKeydownOn(root, fieldsets[0]!, 'Tab', {
+      code: 'Tab',
+      shiftKey: true,
+    });
+    expect(shiftTab.preventDefault).toHaveBeenCalledTimes(1);
+    expect(closeButton.focusCount).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('SnippetFillInModal — arrow navigation inside a choice question', () => {
+  it('moves between option pills without creating Tab stops', () => {
+    const { fieldset, options, toggle } = openModalWithChoice();
+    expect(options.every((option) => option.getAttribute('tabindex') === '-1')).toBe(true);
     expect(toggle.getAttribute('tabindex')).toBe('-1');
 
-    const right = dispatchKeydownOn(fieldset, options[0]!, 'ArrowRight', { code: 'ArrowRight' });
+    // From the question itself: Right enters at the first option.
+    const right = dispatchKeydownOn(fieldset, fieldset, 'ArrowRight', { code: 'ArrowRight' });
     expect(right.preventDefault).toHaveBeenCalledTimes(1);
-    expect(options[1]!.getAttribute('tabindex')).toBe('0');
-    expect(options[0]!.getAttribute('tabindex')).toBe('-1');
+    expect(options[0]!.focusCount).toBeGreaterThanOrEqual(1);
 
-    // Down behaves like Right; the ✎ toggle sits after the last option.
-    dispatchKeydownOn(fieldset, options[2]!, 'ArrowDown', { code: 'ArrowDown' });
-    expect(toggle.getAttribute('tabindex')).toBe('0');
-    expect(toggle.focusCount).toBeGreaterThanOrEqual(1);
+    // Down behaves like Right from a member.
+    dispatchKeydownOn(fieldset, options[0]!, 'ArrowDown', { code: 'ArrowDown' });
+    expect(options[1]!.focusCount).toBeGreaterThanOrEqual(1);
+
+    // Right from the last option lands on the ✎ toggle.
+    const beforeToggle = toggle.focusCount;
+    dispatchKeydownOn(fieldset, options[2]!, 'ArrowRight', { code: 'ArrowRight' });
+    expect(toggle.focusCount).toBeGreaterThan(beforeToggle);
 
     // Left from the first option wraps backwards onto the toggle.
+    const beforeWrap = toggle.focusCount;
     dispatchKeydownOn(fieldset, options[0]!, 'ArrowLeft', { code: 'ArrowLeft' });
-    expect(toggle.getAttribute('tabindex')).toBe('0');
-
-    // Tab always leaves the group and is never intercepted.
-    const tab = dispatchKeydownOn(fieldset, toggle, 'Tab', { code: 'Tab' });
-    expect(tab.preventDefault).not.toHaveBeenCalled();
+    expect(toggle.focusCount).toBeGreaterThan(beforeWrap);
   });
 });
 
 describe('SnippetFillInModal — numeric option toggles', () => {
   it('toggles the Nth option from inside the group and keeps ARIA in sync', () => {
-    const { root, options } = openModalWithChoice();
-    const fieldset = root.querySelector('fieldset')!;
+    const { fieldset, options } = openModalWithChoice();
 
-    const { preventDefault } = dispatchKeydownOn(fieldset, options[0]!, '2', { code: 'Digit2' });
+    const { preventDefault } = dispatchKeydownOn(fieldset, fieldset, '2', { code: 'Digit2' });
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(options[1]!.getAttribute('aria-pressed')).toBe('true');
     expect(options[1]!.hasClass('is-selected')).toBe(true);
     expect(options[0]!.getAttribute('aria-pressed')).toBe('false');
-    // The roving Tab stop follows the toggled option.
-    expect(options[1]!.getAttribute('tabindex')).toBe('0');
+    // Toggling must not move focus into the options — Tab has to leave the
+    // question in one press.
+    expect(options[1]!.focusCount).toBe(0);
+    expect(fieldset.focusCount).toBeGreaterThanOrEqual(1);
   });
 
   it('toggles the same option back off on a second press', () => {

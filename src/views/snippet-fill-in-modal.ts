@@ -13,6 +13,25 @@ import { attachTextExpansion } from '../expansion/textarea';
 // only and renders exclusively via renderMdTemplateSnippet.
 
 /**
+ * True when `target` is `root` or a descendant of it. Uses the DOM `parent*`
+ * chain (and the test double's `parent`) instead of `Node.contains` so the
+ * modal stays testable in the Node/vitest environment.
+ */
+function isInside(root: HTMLElement, target: EventTarget | null): boolean {
+  let node: unknown = target;
+  while (node) {
+    if (node === root) return true;
+    const parented = node as {
+      parentElement?: unknown;
+      parentNode?: unknown;
+      parent?: unknown;
+    };
+    node = parented.parentElement ?? parented.parentNode ?? parented.parent ?? null;
+  }
+  return false;
+}
+
+/**
  * SnippetFillInModal — presented by a runner host when the runner reaches a text-block
  * node with a snippetId attached.
  *
@@ -47,10 +66,21 @@ export class SnippetFillInModal extends Modal {
   private fieldIdSeed = 0;
   /** First interactive field in render order; focused when the modal opens. */
   private firstFieldEl: HTMLElement | null = null;
+  /**
+   * Focus stops in render order — one per placeholder ("question"). Tab and
+   * Shift+Tab move between whole questions instead of individual option pills,
+   * so a multi-option choice never costs an extra Tab press.
+   */
+  private readonly questionStops: Array<{ root: HTMLElement; focus: () => void }> = [];
+  /** Cancel button; Tab from the last question hands focus over to it. */
+  private cancelBtnEl: HTMLButtonElement | null = null;
+  /** Host-provided modal close button; Shift+Tab from the first question uses it. */
+  private modalCloseEl: HTMLElement | null = null;
 
   /**
    * Bubble-phase keydown listener on `contentEl` — Ctrl+Space confirms
-   * (Shift+Enter stays a legacy alias).
+   * (Shift+Enter stays a legacy alias) and Tab/Shift+Tab move between
+   * questions.
    *
    * A contentEl-level listener is used instead of `Modal.scope` key bindings
    * because the event has to be seen while focus sits inside a placeholder
@@ -62,11 +92,37 @@ export class SnippetFillInModal extends Modal {
    */
   private readonly onContentKeydown = (event: KeyboardEvent): void => {
     if (event.isComposing) return;
+    if (event.key === 'Tab') {
+      // Modified Tab chords belong to Obsidian / the OS.
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+      this.handleQuestionTab(event);
+      return;
+    }
     const shiftEnter = event.key === 'Enter' && event.shiftKey;
     if (!shiftEnter && !isConfirmChord(event)) return;
     event.preventDefault();
     this.confirm();
   };
+
+  /**
+   * Tab / Shift+Tab move between placeholders as whole questions. Native
+   * sequential focus would still stop on the focused option pill (or on the
+   * question's inner fieldset), which made the user press Tab twice after
+   * selecting an option in the middle. At the edges focus leaves the question
+   * list for the surrounding modal controls.
+   */
+  private handleQuestionTab(event: KeyboardEvent): void {
+    const index = this.questionStops.findIndex((stop) => isInside(stop.root, event.target));
+    if (index === -1) return;
+
+    const target = event.shiftKey
+      ? (index > 0 ? this.questionStops[index - 1] : this.modalCloseEl)
+      : (index < this.questionStops.length - 1 ? this.questionStops[index + 1] : this.cancelBtnEl);
+    // Let the browser handle the boundary if the host control is unavailable.
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
+  }
 
   constructor(app: App, snippet: MdTemplateSnippet, t?: Translator) {
     super(app);
@@ -82,10 +138,16 @@ export class SnippetFillInModal extends Modal {
     this.contentEl.addClass('rp-snippet-modal');
 
     // D-07: wide Obsidian modal (same pattern as snippet-editor-modal)
-    const modalEl = (this as unknown as { modalEl?: { addClass?: (cls: string) => void } }).modalEl;
+    const modalEl = (this as unknown as {
+      modalEl?: {
+        addClass?: (cls: string) => void;
+        querySelector?: (selector: string) => Element | null;
+      };
+    }).modalEl;
     if (typeof modalEl?.addClass === 'function') {
       modalEl.addClass('rp-snippet-fill-modal');
     }
+    this.modalCloseEl = (modalEl?.querySelector?.('.modal-close-button') as HTMLElement | null) ?? null;
 
     // Darken the entire workspace behind the modal (.modal-bg lives inside
     // containerEl) so attention stays on placeholder filling. containerEl is
@@ -101,6 +163,8 @@ export class SnippetFillInModal extends Modal {
     }
 
     this.firstFieldEl = null;
+    this.questionStops.length = 0;
+    this.cancelBtnEl = null;
 
     // Render one field per placeholder in array order (D-12: tab order = array order)
     for (const placeholder of this.snippet.placeholders) {
@@ -160,12 +224,16 @@ export class SnippetFillInModal extends Modal {
   /** Render the appropriate input field for a single placeholder. */
   private renderField(placeholder: SnippetPlaceholder): void {
     const fieldDiv = this.contentEl.createDiv({ cls: 'rp-snippet-modal-field rp-stack' });
+    let focus: (() => void) | null = null;
     if (placeholder.type === 'free-text') {
-      this.renderFreeTextField(fieldDiv, placeholder);
+      focus = this.renderFreeTextField(fieldDiv, placeholder);
     } else if (placeholder.type === 'choice') {
-      this.renderChoiceField(fieldDiv, placeholder);
+      focus = this.renderChoiceField(fieldDiv, placeholder);
     }
     // Phase 52: unknown types render nothing. Plan 04 guards upstream via validationError.
+    if (focus !== null) {
+      this.questionStops.push({ root: fieldDiv, focus });
+    }
   }
 
   /**
@@ -173,7 +241,10 @@ export class SnippetFillInModal extends Modal {
    * grow-with-content behavior as the runner's free-text Answer fields
    * (rows=1, CSS min-height, JS grow via scrollHeight).
    */
-  private renderFreeTextField(container: HTMLElement, placeholder: SnippetPlaceholder): void {
+  private renderFreeTextField(
+    container: HTMLElement,
+    placeholder: SnippetPlaceholder,
+  ): () => void {
     const label = container.createEl('label', { cls: 'rp-snippet-modal-label' });
     label.textContent = placeholder.label; // User-authored content, not a UI string
 
@@ -191,6 +262,8 @@ export class SnippetFillInModal extends Modal {
       this.growInput(textarea);
       this.updatePreview();
     });
+
+    return () => textarea.focus();
   }
 
   /** Expand a single-line input textarea to fit its content (runner free-text pattern). */
@@ -207,8 +280,11 @@ export class SnippetFillInModal extends Modal {
   private renderChoiceField(
     container: HTMLElement,
     placeholder: SnippetPlaceholder,
-  ): void {
-    const fieldset = container.createEl('fieldset');
+  ): () => void {
+    // The fieldset is the question's single Tab stop. Option pills and the ✎
+    // toggle stay at tabindex="-1": arrows reach them, Tab moves to the next
+    // question instead of stopping inside this one.
+    const fieldset = container.createEl('fieldset', { attr: { tabindex: '0' } });
     const legend = fieldset.createEl('legend', { cls: 'rp-snippet-modal-label' });
     legend.textContent = placeholder.label; // User-authored content, not a UI string
 
@@ -257,6 +333,7 @@ export class SnippetFillInModal extends Modal {
       btn.name = `rp-${placeholder.id}`;
       btn.value = opt;
       btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('tabindex', '-1');
 
       // The digit that toggles this option while the group has focus. Only the
       // first nine are numbered because that is all the keymap accepts; the
@@ -284,6 +361,7 @@ export class SnippetFillInModal extends Modal {
     customToggle.textContent = '✎'; // Non-translatable edit-toggle symbol
     customToggle.setAttribute('aria-label', this.t('snippetPreview.showCustomAria', { label: placeholder.label }));
     customToggle.setAttribute('aria-expanded', 'false');
+    customToggle.setAttribute('tabindex', '-1');
 
     const customRow = fieldset.createDiv({ cls: 'rp-snippet-modal-custom-row' });
     customRow.setAttribute('hidden', 'true');
@@ -334,29 +412,23 @@ export class SnippetFillInModal extends Modal {
       recomputeValue();
     });
 
-    // Roving tabindex: one Tab stop per choice group. Arrows move between the
-    // option pills and the ✎ toggle, so a five-option field costs one Tab
-    // instead of six; Tab still leaves the group for the next field. The
-    // collapsed Custom row stays out of the set, and the toggle itself remains
-    // reachable by arrow (and as the group's Tab stop once focused).
-    const rovingMembers: HTMLElement[] = [...optionButtons, customToggle];
-    let rovingIndex = 0;
-    const setRovingIndex = (index: number, focus: boolean): void => {
-      const count = rovingMembers.length;
-      rovingIndex = ((index % count) + count) % count;
-      rovingMembers.forEach((member, i) => {
-        member.setAttribute('tabindex', i === rovingIndex ? '0' : '-1');
-      });
-      if (focus) rovingMembers[rovingIndex]?.focus();
+    // Arrow keys walk the option pills and the ✎ toggle. They are not Tab
+    // stops: the fieldset itself is the stop, and Tab/Shift+Tab are handled at
+    // the modal level so they always move the whole question.
+    const groupMembers: HTMLElement[] = [...optionButtons, customToggle];
+    const focusMember = (index: number): void => {
+      const count = groupMembers.length;
+      if (count === 0) return;
+      groupMembers[((index % count) + count) % count]?.focus();
     };
-    setRovingIndex(0, false);
-    if (this.firstFieldEl === null) this.firstFieldEl = rovingMembers[0] ?? null;
+    if (this.firstFieldEl === null) this.firstFieldEl = fieldset;
 
     fieldset.addEventListener('keydown', (event) => {
       // The Custom textarea keeps every key for typing (digits, arrows, Space).
       if (event.target === customInput) return;
-      const memberIndex = rovingMembers.indexOf(event.target as HTMLElement);
-      if (memberIndex === -1) return;
+      const fromGroup = event.target === fieldset;
+      const memberIndex = groupMembers.indexOf(event.target as HTMLElement);
+      if (memberIndex === -1 && !fromGroup) return;
 
       const code = event.code || event.key;
       const delta = code === 'ArrowRight' || code === 'ArrowDown'
@@ -366,12 +438,18 @@ export class SnippetFillInModal extends Modal {
           : 0;
       if (delta !== 0) {
         event.preventDefault();
-        setRovingIndex(memberIndex + delta, true);
+        if (fromGroup) {
+          // Enter the list at its first option or at the ✎ toggle.
+          focusMember(delta > 0 ? 0 : groupMembers.length - 1);
+        } else {
+          focusMember(memberIndex + delta);
+        }
         return;
       }
 
-      // 1–9 toggles the Nth option, but only from inside the group; the
-      // textarea guard above keeps digits typing themselves.
+      // 1–9 toggles the Nth option while the question or one of its members
+      // has focus. Focus deliberately stays where it is: the next Tab must go
+      // to the next question, not to the option that was just toggled.
       const digit = /^(?:Digit|Numpad)([1-9])$/.exec(code)
         ?? /^([1-9])$/.exec(event.key ?? '');
       const index = digit === null ? 0 : Number(digit[1]);
@@ -380,9 +458,9 @@ export class SnippetFillInModal extends Modal {
       if (btn === undefined) return;
       event.preventDefault();
       toggleOption(btn);
-      // Let Tab continue from the option that was just toggled.
-      setRovingIndex(index - 1, false);
     });
+
+    return () => fieldset.focus();
   }
 
   /** Render the live preview section below all placeholder fields (D-13). */
@@ -514,6 +592,7 @@ export class SnippetFillInModal extends Modal {
 
     const cancelBtn = row.createEl('button');
     cancelBtn.textContent = this.t('snippetEditor.cancel');
+    this.cancelBtnEl = cancelBtn;
     cancelBtn.addEventListener('click', () => {
       this.safeResolve(null);
       this.close();
