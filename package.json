@@ -1,6 +1,6 @@
 {
   "name": "protocol-former",
-  "version": "3.7.0",
+  "version": "3.7.1",
   "description": "Guided structured radiology protocol runner for Obsidian",
   "main": "main.js",
   "scripts": {
