@@ -65,3 +65,12 @@ between questions and a `0` shortcut for the Custom override.
 2. With a choice question focused, press `0`: Custom opens and the caret is in
    its field. Type `0` there and confirm it types normally.
 3. Check the small `0` badge on `✎` is visible in both light and dark themes.
+
+## Session close
+
+- The user confirmed the `3.7.2` result visually (“Теперь смотрится
+  замечательно”), so item 1 above is accepted.
+- The `0` hotkey is implemented and covered by the modal tests; manual checks 2
+  and 3 remain optional follow-ups in Obsidian.
+- Working tree is clean, `main` matches `origin/main`, the `3.7.2` tag is pushed,
+  and there is no open background work.
