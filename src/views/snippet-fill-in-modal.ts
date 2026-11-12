@@ -362,6 +362,8 @@ export class SnippetFillInModal extends Modal {
     customToggle.setAttribute('aria-label', this.t('snippetPreview.showCustomAria', { label: placeholder.label }));
     customToggle.setAttribute('aria-expanded', 'false');
     customToggle.setAttribute('tabindex', '-1');
+    customToggle.setAttribute('data-rp-key', '0');
+    customToggle.setAttribute('aria-keyshortcuts', '0');
 
     const customRow = fieldset.createDiv({ cls: 'rp-snippet-modal-custom-row' });
     customRow.setAttribute('hidden', 'true');
@@ -447,13 +449,19 @@ export class SnippetFillInModal extends Modal {
         return;
       }
 
-      // 1–9 toggles the Nth option while the question or one of its members
-      // has focus. Focus deliberately stays where it is: the next Tab must go
-      // to the next question, not to the option that was just toggled.
-      const digit = /^(?:Digit|Numpad)([1-9])$/.exec(code)
-        ?? /^([1-9])$/.exec(event.key ?? '');
-      const index = digit === null ? 0 : Number(digit[1]);
-      if (index === 0) return;
+      // 1–9 toggles the Nth option and 0 opens the Custom override while the
+      // question or one of its members has focus. Focus deliberately stays on
+      // the question for 1–9: the next Tab must go to the next question, not to
+      // the option that was just toggled. 0 moves the caret into Custom.
+      const digit = /^(?:Digit|Numpad)([0-9])$/.exec(code)
+        ?? /^([0-9])$/.exec(event.key ?? '');
+      if (digit === null) return;
+      const index = Number(digit[1]);
+      if (index === 0) {
+        event.preventDefault();
+        setCustomOpen(true);
+        return;
+      }
       const btn = optionButtons[index - 1];
       if (btn === undefined) return;
       event.preventDefault();

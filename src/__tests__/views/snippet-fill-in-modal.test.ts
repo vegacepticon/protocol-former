@@ -895,6 +895,10 @@ describe('SnippetFillInModal — inserted values highlighted in preview', () => 
     const focusBlock = css.match(/\.rp-snippet-modal-field:focus-within\s*\{[^}]*\}/);
     expect(focusBlock?.[0]).toContain('outline: 2px solid var(--interactive-accent)');
     expect(css).toMatch(/\.rp-snippet-modal fieldset:focus\s*\{[^}]*outline:\s*none/);
+    // The 16px gap keeps the 6px focus frame clear of the neighbouring question.
+    expect(css).toMatch(/\.rp-snippet-modal\s*\{[^}]*gap:\s*var\(--size-4-2\)/);
+    // The 0 hotkey is visible on the ✎ toggle.
+    expect(css).toContain('.rp-snippet-modal-custom-toggle[data-rp-key]::after');
   });
 
   it('wraps choice selections and custom override values in value spans', () => {
@@ -1518,9 +1522,10 @@ describe('SnippetFillInModal — numeric option toggles', () => {
     toggle.dispatchEvent({ type: 'click' });
     const fieldset = root.querySelector('fieldset')!;
 
-    const { preventDefault } = dispatchKeydownOn(fieldset, customInput, '1', { code: 'Digit1' });
-
-    expect(preventDefault).not.toHaveBeenCalled();
+    for (const [key, code] of [['1', 'Digit1'], ['0', 'Digit0']] as const) {
+      const { preventDefault } = dispatchKeydownOn(fieldset, customInput, key, { code });
+      expect(preventDefault).not.toHaveBeenCalled();
+    }
     expect(options[0]!.getAttribute('aria-pressed')).toBe('false');
   });
 
@@ -1531,6 +1536,42 @@ describe('SnippetFillInModal — numeric option toggles', () => {
     const { preventDefault } = dispatchKeydownOn(fieldset, options[0]!, '9', { code: 'Digit9' });
 
     expect(preventDefault).not.toHaveBeenCalled();
+  });
+});
+
+describe('SnippetFillInModal — 0 opens the Custom override', () => {
+  it('opens and focuses Custom from the focused question', () => {
+    const { root, fieldset, customInput, toggle, options } = openModalWithChoice();
+    const customRow = root.querySelector('.rp-snippet-modal-custom-row')!;
+    expect(customRow.getAttribute('hidden')).toBe('true');
+
+    const { preventDefault } = dispatchKeydownOn(fieldset, fieldset, '0', { code: 'Digit0' });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(customRow.getAttribute('hidden')).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(customInput.focusCount).toBeGreaterThanOrEqual(1);
+    // 0 must open Custom, not toggle the first option.
+    expect(options.every((option) => !option.hasClass('is-selected'))).toBe(true);
+  });
+
+  it('opens Custom from an option pill and accepts Numpad0', () => {
+    const { root, fieldset, options, customInput, toggle } = openModalWithChoice();
+    const customRow = root.querySelector('.rp-snippet-modal-custom-row')!;
+
+    const { preventDefault } = dispatchKeydownOn(fieldset, options[1]!, '0', { code: 'Numpad0' });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(customRow.getAttribute('hidden')).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(customInput.focusCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the 0 hotkey on the Custom toggle', () => {
+    const { toggle } = openModalWithChoice();
+
+    expect(toggle.getAttribute('data-rp-key')).toBe('0');
+    expect(toggle.getAttribute('aria-keyshortcuts')).toBe('0');
   });
 });
 
